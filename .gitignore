@@ -195,7 +195,7 @@ dist
 .svelte-kit
 
 ### VisualStudioCode ###
-.cursor/
+.cursor
 .vscode/*
 !.vscode/settings.json
 !.vscode/tasks.json

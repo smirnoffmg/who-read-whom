@@ -1,0 +1,44 @@
+@startuml data-model
+
+skinparam linetype ortho
+skinparam class {
+    BackgroundColor White
+    BorderColor Black
+}
+
+entity "Writer" as writer {
+    * id : bigint <<PK>>
+    --
+    * name : varchar
+    * birth_year : int
+    death_year : int
+    bio : text
+}
+
+entity "Work" as work {
+    * id : bigint <<PK>>
+    --
+    * title : varchar
+    * author_id : bigint <<FK>>
+}
+
+entity "Opinion" as opinion {
+    * writer_id : bigint <<PK, FK>>
+    * work_id : bigint <<PK, FK>>
+    --
+    * sentiment : boolean
+    * quote : text
+    * source : varchar
+    page : varchar
+    statement_year : int
+}
+
+writer ||--o{ work : "writes"
+writer ||--o{ opinion : "expresses"
+work ||--o{ opinion : "receives"
+
+note bottom of opinion
+    CHECK: writer_id ≠ Work.author_id
+end note
+
+@enduml
