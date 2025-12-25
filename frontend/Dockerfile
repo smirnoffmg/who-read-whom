@@ -43,9 +43,10 @@ RUN apk add --no-cache wget
 # Node.js image already has node user, no need to create
 
 # Copy necessary files from builder
-# Next.js standalone output structure
-COPY --from=builder /app/public ./public
+# Next.js standalone output structure (nested based on workspace)
 COPY --from=builder --chown=node:node /app/.next/standalone ./
+# Copy public and static files
+COPY --from=builder /app/public ./public
 COPY --from=builder --chown=node:node /app/.next/static ./.next/static
 
 # Switch to non-root user (Node.js image already has node user)
@@ -62,6 +63,7 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD wget --no-verbose --tries=1 --spider http://localhost:3000 || exit 1
 
 # Run the application from standalone directory
+# server.js is at the root of the standalone output
 WORKDIR /app
 CMD ["node", "server.js"]
 
