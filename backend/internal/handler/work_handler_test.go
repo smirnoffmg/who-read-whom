@@ -80,7 +80,9 @@ func setupWorkHandlerRouter(svc service.WorkService) *gin.Engine {
 }
 
 func TestWorkHandler_Create(t *testing.T) {
+	t.Parallel()
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
 		svc := &mockWorkService{}
 		router := setupWorkHandlerRouter(svc)
 
@@ -103,6 +105,7 @@ func TestWorkHandler_Create(t *testing.T) {
 	})
 
 	t.Run("missing title", func(t *testing.T) {
+		t.Parallel()
 		svc := &mockWorkService{}
 		router := setupWorkHandlerRouter(svc)
 
@@ -120,6 +123,7 @@ func TestWorkHandler_Create(t *testing.T) {
 	})
 
 	t.Run("service error", func(t *testing.T) {
+		t.Parallel()
 		svc := &mockWorkService{
 			create: func(string, uint64) (*domain.Work, error) {
 				return nil, assert.AnError
@@ -143,7 +147,9 @@ func TestWorkHandler_Create(t *testing.T) {
 }
 
 func TestWorkHandler_GetByID(t *testing.T) {
+	t.Parallel()
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
 		svc := &mockWorkService{
 			getByID: func(id uint64) (*domain.Work, error) {
 				return domain.NewWork(id, "Pride and Prejudice", 1), nil
@@ -164,6 +170,7 @@ func TestWorkHandler_GetByID(t *testing.T) {
 	})
 
 	t.Run("invalid id", func(t *testing.T) {
+		t.Parallel()
 		svc := &mockWorkService{}
 		router := setupWorkHandlerRouter(svc)
 
@@ -176,6 +183,7 @@ func TestWorkHandler_GetByID(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
+		t.Parallel()
 		svc := &mockWorkService{
 			getByID: func(uint64) (*domain.Work, error) {
 				return nil, assert.AnError
@@ -193,7 +201,9 @@ func TestWorkHandler_GetByID(t *testing.T) {
 }
 
 func TestWorkHandler_GetByAuthor(t *testing.T) {
+	t.Parallel()
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
 		svc := &mockWorkService{
 			getByAuthor: func(uint64) ([]*domain.Work, error) {
 				return []*domain.Work{
@@ -217,6 +227,7 @@ func TestWorkHandler_GetByAuthor(t *testing.T) {
 	})
 
 	t.Run("invalid author_id", func(t *testing.T) {
+		t.Parallel()
 		svc := &mockWorkService{}
 		router := setupWorkHandlerRouter(svc)
 
@@ -230,7 +241,9 @@ func TestWorkHandler_GetByAuthor(t *testing.T) {
 }
 
 func TestWorkHandler_List(t *testing.T) {
+	t.Parallel()
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
 		svc := &mockWorkService{
 			list: func(int, int) ([]*domain.Work, error) {
 				return []*domain.Work{
@@ -255,7 +268,9 @@ func TestWorkHandler_List(t *testing.T) {
 }
 
 func TestWorkHandler_Update(t *testing.T) {
+	t.Parallel()
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
 		svc := &mockWorkService{
 			update: func(uint64, string, uint64) error {
 				return nil
@@ -278,6 +293,7 @@ func TestWorkHandler_Update(t *testing.T) {
 	})
 
 	t.Run("missing title", func(t *testing.T) {
+		t.Parallel()
 		svc := &mockWorkService{}
 		router := setupWorkHandlerRouter(svc)
 
@@ -296,7 +312,9 @@ func TestWorkHandler_Update(t *testing.T) {
 }
 
 func TestWorkHandler_Delete(t *testing.T) {
+	t.Parallel()
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
 		svc := &mockWorkService{
 			delete: func(uint64) error {
 				return nil

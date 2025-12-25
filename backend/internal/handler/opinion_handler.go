@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/what-writers-like/backend/internal/domain"
 	"github.com/what-writers-like/backend/internal/service"
 )
 
@@ -80,20 +81,7 @@ func (h *OpinionHandler) GetByWriter(c *gin.Context) {
 		return
 	}
 
-	result := make([]gin.H, len(opinions))
-	for i, o := range opinions {
-		result[i] = gin.H{
-			"writer_id":      o.WriterID(),
-			"work_id":        o.WorkID(),
-			"sentiment":      o.Sentiment(),
-			"quote":          o.Quote(),
-			"source":         o.Source(),
-			"page":           o.Page(),
-			"statement_year": o.StatementYear(),
-		}
-	}
-
-	c.JSON(http.StatusOK, result)
+	c.JSON(http.StatusOK, h.opinionsToResponse(opinions))
 }
 
 func (h *OpinionHandler) GetByWork(c *gin.Context) {
@@ -110,20 +98,7 @@ func (h *OpinionHandler) GetByWork(c *gin.Context) {
 		return
 	}
 
-	result := make([]gin.H, len(opinions))
-	for i, o := range opinions {
-		result[i] = gin.H{
-			"writer_id":      o.WriterID(),
-			"work_id":        o.WorkID(),
-			"sentiment":      o.Sentiment(),
-			"quote":          o.Quote(),
-			"source":         o.Source(),
-			"page":           o.Page(),
-			"statement_year": o.StatementYear(),
-		}
-	}
-
-	c.JSON(http.StatusOK, result)
+	c.JSON(http.StatusOK, h.opinionsToResponse(opinions))
 }
 
 func (h *OpinionHandler) GetByWriterAndWork(c *gin.Context) {
@@ -178,6 +153,10 @@ func (h *OpinionHandler) List(c *gin.Context) {
 		return
 	}
 
+	c.JSON(http.StatusOK, h.opinionsToResponse(opinions))
+}
+
+func (h *OpinionHandler) opinionsToResponse(opinions []*domain.Opinion) []gin.H {
 	result := make([]gin.H, len(opinions))
 	for i, o := range opinions {
 		result[i] = gin.H{
@@ -190,8 +169,7 @@ func (h *OpinionHandler) List(c *gin.Context) {
 			"statement_year": o.StatementYear(),
 		}
 	}
-
-	c.JSON(http.StatusOK, result)
+	return result
 }
 
 func (h *OpinionHandler) Update(c *gin.Context) {

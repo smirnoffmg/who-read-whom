@@ -11,6 +11,7 @@ import (
 )
 
 func TestOpinionRepository_DatabaseConstraint(t *testing.T) {
+	t.Parallel()
 	db, cleanup := testutils.SetupTestDB(t)
 	defer cleanup()
 
@@ -33,6 +34,6 @@ func TestOpinionRepository_DatabaseConstraint(t *testing.T) {
 	err = opinionRepo.Create(opinion)
 
 	// Should fail due to database constraint
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "writer cannot express opinion about their own work")
 }

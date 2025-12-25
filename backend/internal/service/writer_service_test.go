@@ -156,7 +156,9 @@ func (m *mockWorkRepository) Delete(id uint64) error {
 }
 
 func TestWriterService_CreateWriter(t *testing.T) {
+	t.Parallel()
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
 		writerRepo := &mockWriterRepository{}
 		workRepo := &mockWorkRepository{}
 		svc := service.NewWriterService(writerRepo, workRepo)
@@ -168,26 +170,29 @@ func TestWriterService_CreateWriter(t *testing.T) {
 	})
 
 	t.Run("empty name", func(t *testing.T) {
+		t.Parallel()
 		writerRepo := &mockWriterRepository{}
 		workRepo := &mockWorkRepository{}
 		svc := service.NewWriterService(writerRepo, workRepo)
 
 		_, err := svc.CreateWriter("", 1775, nil, nil)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "name is required")
 	})
 
 	t.Run("invalid birth year", func(t *testing.T) {
+		t.Parallel()
 		writerRepo := &mockWriterRepository{}
 		workRepo := &mockWorkRepository{}
 		svc := service.NewWriterService(writerRepo, workRepo)
 
 		_, err := svc.CreateWriter("Jane Austen", 0, nil, nil)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "birth year must be positive")
 	})
 
 	t.Run("increments id correctly", func(t *testing.T) {
+		t.Parallel()
 		writerRepo := &mockWriterRepository{
 			writers: map[uint64]*domain.Writer{
 				1: domain.NewWriter(1, "Writer 1", 1800, nil, nil),
@@ -204,7 +209,9 @@ func TestWriterService_CreateWriter(t *testing.T) {
 }
 
 func TestWriterService_GetWriter(t *testing.T) {
+	t.Parallel()
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
 		expectedWriter := domain.NewWriter(1, "Jane Austen", 1775, nil, nil)
 		writerRepo := &mockWriterRepository{
 			getByID: func(id uint64) (*domain.Writer, error) {
@@ -224,6 +231,7 @@ func TestWriterService_GetWriter(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
+		t.Parallel()
 		writerRepo := &mockWriterRepository{
 			getByID: func(uint64) (*domain.Writer, error) {
 				return nil, errors.New("not found")
@@ -233,11 +241,12 @@ func TestWriterService_GetWriter(t *testing.T) {
 		svc := service.NewWriterService(writerRepo, workRepo)
 
 		_, err := svc.GetWriter(999)
-		assert.Error(t, err)
+		require.Error(t, err)
 	})
 }
 
 func TestWriterService_ListWriters(t *testing.T) {
+	t.Parallel()
 	expectedWriters := []*domain.Writer{
 		domain.NewWriter(1, "Jane Austen", 1775, nil, nil),
 		domain.NewWriter(2, "Charles Dickens", 1812, nil, nil),
@@ -256,7 +265,9 @@ func TestWriterService_ListWriters(t *testing.T) {
 }
 
 func TestWriterService_UpdateWriter(t *testing.T) {
+	t.Parallel()
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
 		writerRepo := &mockWriterRepository{
 			update: func(writer *domain.Writer) error {
 				return nil
@@ -271,28 +282,32 @@ func TestWriterService_UpdateWriter(t *testing.T) {
 	})
 
 	t.Run("empty name", func(t *testing.T) {
+		t.Parallel()
 		writerRepo := &mockWriterRepository{}
 		workRepo := &mockWorkRepository{}
 		svc := service.NewWriterService(writerRepo, workRepo)
 
 		err := svc.UpdateWriter(1, "", 1775, nil, nil)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "name is required")
 	})
 
 	t.Run("invalid birth year", func(t *testing.T) {
+		t.Parallel()
 		writerRepo := &mockWriterRepository{}
 		workRepo := &mockWorkRepository{}
 		svc := service.NewWriterService(writerRepo, workRepo)
 
 		err := svc.UpdateWriter(1, "Jane Austen", 0, nil, nil)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "birth year must be positive")
 	})
 }
 
 func TestWriterService_DeleteWriter(t *testing.T) {
+	t.Parallel()
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
 		writerRepo := &mockWriterRepository{
 			delete: func(uint64) error {
 				return nil
@@ -310,6 +325,7 @@ func TestWriterService_DeleteWriter(t *testing.T) {
 	})
 
 	t.Run("cannot delete writer with works", func(t *testing.T) {
+		t.Parallel()
 		writerRepo := &mockWriterRepository{}
 		workRepo := &mockWorkRepository{
 			getByAuthorID: func(uint64) ([]*domain.Work, error) {
@@ -321,7 +337,7 @@ func TestWriterService_DeleteWriter(t *testing.T) {
 		svc := service.NewWriterService(writerRepo, workRepo)
 
 		err := svc.DeleteWriter(1)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "cannot delete writer with existing works")
 	})
 }

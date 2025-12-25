@@ -101,7 +101,9 @@ func setupOpinionHandlerRouter(svc service.OpinionService) *gin.Engine {
 }
 
 func TestOpinionHandler_Create(t *testing.T) {
+	t.Parallel()
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
 		svc := &mockOpinionService{}
 		router := setupOpinionHandlerRouter(svc)
 
@@ -128,6 +130,7 @@ func TestOpinionHandler_Create(t *testing.T) {
 	})
 
 	t.Run("missing quote", func(t *testing.T) {
+		t.Parallel()
 		svc := &mockOpinionService{}
 		router := setupOpinionHandlerRouter(svc)
 
@@ -148,6 +151,7 @@ func TestOpinionHandler_Create(t *testing.T) {
 	})
 
 	t.Run("service error", func(t *testing.T) {
+		t.Parallel()
 		svc := &mockOpinionService{
 			create: func(uint64, uint64, bool, string, string, *string, *int) (*domain.Opinion, error) {
 				return nil, assert.AnError
@@ -174,7 +178,9 @@ func TestOpinionHandler_Create(t *testing.T) {
 }
 
 func TestOpinionHandler_GetByWriter(t *testing.T) {
+	t.Parallel()
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
 		svc := &mockOpinionService{
 			getByWriter: func(uint64) ([]*domain.Opinion, error) {
 				return []*domain.Opinion{
@@ -197,6 +203,7 @@ func TestOpinionHandler_GetByWriter(t *testing.T) {
 	})
 
 	t.Run("invalid writer_id", func(t *testing.T) {
+		t.Parallel()
 		svc := &mockOpinionService{}
 		router := setupOpinionHandlerRouter(svc)
 
@@ -210,7 +217,9 @@ func TestOpinionHandler_GetByWriter(t *testing.T) {
 }
 
 func TestOpinionHandler_GetByWork(t *testing.T) {
+	t.Parallel()
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
 		svc := &mockOpinionService{
 			getByWork: func(uint64) ([]*domain.Opinion, error) {
 				return []*domain.Opinion{
@@ -234,7 +243,9 @@ func TestOpinionHandler_GetByWork(t *testing.T) {
 }
 
 func TestOpinionHandler_GetByWriterAndWork(t *testing.T) {
+	t.Parallel()
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
 		svc := &mockOpinionService{
 			getOpinion: func(writerID, workID uint64) (*domain.Opinion, error) {
 				return domain.NewOpinion(writerID, workID, true, "Quote", "Source", nil, nil), nil
@@ -256,6 +267,7 @@ func TestOpinionHandler_GetByWriterAndWork(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
+		t.Parallel()
 		svc := &mockOpinionService{
 			getOpinion: func(uint64, uint64) (*domain.Opinion, error) {
 				return nil, assert.AnError
@@ -273,7 +285,9 @@ func TestOpinionHandler_GetByWriterAndWork(t *testing.T) {
 }
 
 func TestOpinionHandler_List(t *testing.T) {
+	t.Parallel()
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
 		svc := &mockOpinionService{
 			list: func(int, int) ([]*domain.Opinion, error) {
 				return []*domain.Opinion{
@@ -298,7 +312,9 @@ func TestOpinionHandler_List(t *testing.T) {
 }
 
 func TestOpinionHandler_Update(t *testing.T) {
+	t.Parallel()
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
 		svc := &mockOpinionService{
 			update: func(uint64, uint64, bool, string, string, *string, *int) error {
 				return nil
@@ -325,6 +341,7 @@ func TestOpinionHandler_Update(t *testing.T) {
 	})
 
 	t.Run("missing quote", func(t *testing.T) {
+		t.Parallel()
 		svc := &mockOpinionService{}
 		router := setupOpinionHandlerRouter(svc)
 
@@ -344,7 +361,9 @@ func TestOpinionHandler_Update(t *testing.T) {
 }
 
 func TestOpinionHandler_Delete(t *testing.T) {
+	t.Parallel()
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
 		svc := &mockOpinionService{
 			delete: func(uint64, uint64) error {
 				return nil

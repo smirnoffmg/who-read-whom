@@ -32,13 +32,13 @@ func setupE2ERouter(t *testing.T) (*gin.Engine, func()) {
 	opinionHandler := handler.NewOpinionHandler(opinionService)
 
 	gin.SetMode(gin.TestMode)
-	router := gin.New()
-	router = handler.SetupRouter(writerHandler, workHandler, opinionHandler)
+	router := handler.SetupRouter(writerHandler, workHandler, opinionHandler)
 
 	return router, cleanup
 }
 
 func TestE2E_WriterWorkflow(t *testing.T) {
+	t.Parallel()
 	router, cleanup := setupE2ERouter(t)
 	defer cleanup()
 
@@ -110,6 +110,7 @@ func TestE2E_WriterWorkflow(t *testing.T) {
 }
 
 func TestE2E_WorkWorkflow(t *testing.T) {
+	t.Parallel()
 	router, cleanup := setupE2ERouter(t)
 	defer cleanup()
 
@@ -155,6 +156,7 @@ func TestE2E_WorkWorkflow(t *testing.T) {
 }
 
 func TestE2E_OpinionWorkflow(t *testing.T) {
+	t.Parallel()
 	router, cleanup := setupE2ERouter(t)
 	defer cleanup()
 

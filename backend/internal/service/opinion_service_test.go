@@ -123,6 +123,7 @@ func key(writerID, workID uint64) string {
 }
 
 func TestOpinionService_ListOpinions(t *testing.T) {
+	t.Parallel()
 	expectedOpinions := []*domain.Opinion{
 		domain.NewOpinion(2, 1, true, "Quote 1", "Source 1", nil, nil),
 		domain.NewOpinion(3, 2, false, "Quote 2", "Source 2", nil, nil),
@@ -142,7 +143,9 @@ func TestOpinionService_ListOpinions(t *testing.T) {
 }
 
 func TestOpinionService_CreateOpinion(t *testing.T) {
+	t.Parallel()
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
 		opinionRepo := &mockOpinionRepository{}
 		writerRepo := &mockWriterRepository{
 			getByID: func(id uint64) (*domain.Writer, error) {
@@ -167,39 +170,43 @@ func TestOpinionService_CreateOpinion(t *testing.T) {
 	})
 
 	t.Run("empty quote", func(t *testing.T) {
+		t.Parallel()
 		opinionRepo := &mockOpinionRepository{}
 		writerRepo := &mockWriterRepository{}
 		workRepo := &mockWorkRepository{}
 		svc := service.NewOpinionService(opinionRepo, writerRepo, workRepo)
 
 		_, err := svc.CreateOpinion(2, 1, true, "", "Source", nil, nil)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "quote is required")
 	})
 
 	t.Run("empty source", func(t *testing.T) {
+		t.Parallel()
 		opinionRepo := &mockOpinionRepository{}
 		writerRepo := &mockWriterRepository{}
 		workRepo := &mockWorkRepository{}
 		svc := service.NewOpinionService(opinionRepo, writerRepo, workRepo)
 
 		_, err := svc.CreateOpinion(2, 1, true, "Quote", "", nil, nil)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "source is required")
 	})
 
 	t.Run("work not found", func(t *testing.T) {
+		t.Parallel()
 		opinionRepo := &mockOpinionRepository{}
 		writerRepo := &mockWriterRepository{}
 		workRepo := &mockWorkRepository{}
 		svc := service.NewOpinionService(opinionRepo, writerRepo, workRepo)
 
 		_, err := svc.CreateOpinion(2, 999, true, "Quote", "Source", nil, nil)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "work not found")
 	})
 
 	t.Run("writer cannot express opinion about own work", func(t *testing.T) {
+		t.Parallel()
 		opinionRepo := &mockOpinionRepository{}
 		writerRepo := &mockWriterRepository{
 			getByID: func(id uint64) (*domain.Writer, error) {
@@ -217,11 +224,12 @@ func TestOpinionService_CreateOpinion(t *testing.T) {
 		svc := service.NewOpinionService(opinionRepo, writerRepo, workRepo)
 
 		_, err := svc.CreateOpinion(1, 1, true, "Quote", "Source", nil, nil)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "writer cannot express opinion about their own work")
 	})
 
 	t.Run("writer not found", func(t *testing.T) {
+		t.Parallel()
 		opinionRepo := &mockOpinionRepository{}
 		writerRepo := &mockWriterRepository{
 			getByID: func(uint64) (*domain.Writer, error) {
@@ -236,12 +244,13 @@ func TestOpinionService_CreateOpinion(t *testing.T) {
 		svc := service.NewOpinionService(opinionRepo, writerRepo, workRepo)
 
 		_, err := svc.CreateOpinion(999, 1, true, "Quote", "Source", nil, nil)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "writer not found")
 	})
 }
 
 func TestOpinionService_GetOpinionsByWriter(t *testing.T) {
+	t.Parallel()
 	expectedOpinions := []*domain.Opinion{
 		domain.NewOpinion(2, 1, true, "Quote 1", "Source 1", nil, nil),
 		domain.NewOpinion(2, 2, false, "Quote 2", "Source 2", nil, nil),
@@ -261,6 +270,7 @@ func TestOpinionService_GetOpinionsByWriter(t *testing.T) {
 }
 
 func TestOpinionService_GetOpinionsByWork(t *testing.T) {
+	t.Parallel()
 	expectedOpinions := []*domain.Opinion{
 		domain.NewOpinion(2, 1, true, "Quote 1", "Source 1", nil, nil),
 		domain.NewOpinion(3, 1, false, "Quote 2", "Source 2", nil, nil),
@@ -280,6 +290,7 @@ func TestOpinionService_GetOpinionsByWork(t *testing.T) {
 }
 
 func TestOpinionService_GetOpinion(t *testing.T) {
+	t.Parallel()
 	expectedOpinion := domain.NewOpinion(2, 1, true, "Quote", "Source", nil, nil)
 	opinionRepo := &mockOpinionRepository{
 		getByWriterAndWork: func(writerID, workID uint64) (*domain.Opinion, error) {
@@ -300,7 +311,9 @@ func TestOpinionService_GetOpinion(t *testing.T) {
 }
 
 func TestOpinionService_UpdateOpinion(t *testing.T) {
+	t.Parallel()
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
 		opinionRepo := &mockOpinionRepository{
 			update: func(*domain.Opinion) error {
 				return nil
@@ -319,17 +332,19 @@ func TestOpinionService_UpdateOpinion(t *testing.T) {
 	})
 
 	t.Run("empty quote", func(t *testing.T) {
+		t.Parallel()
 		opinionRepo := &mockOpinionRepository{}
 		writerRepo := &mockWriterRepository{}
 		workRepo := &mockWorkRepository{}
 		svc := service.NewOpinionService(opinionRepo, writerRepo, workRepo)
 
 		err := svc.UpdateOpinion(2, 1, true, "", "Source", nil, nil)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "quote is required")
 	})
 
 	t.Run("writer cannot express opinion about own work", func(t *testing.T) {
+		t.Parallel()
 		opinionRepo := &mockOpinionRepository{}
 		writerRepo := &mockWriterRepository{}
 		workRepo := &mockWorkRepository{
@@ -340,12 +355,13 @@ func TestOpinionService_UpdateOpinion(t *testing.T) {
 		svc := service.NewOpinionService(opinionRepo, writerRepo, workRepo)
 
 		err := svc.UpdateOpinion(1, 1, true, "Quote", "Source", nil, nil)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "writer cannot express opinion about their own work")
 	})
 }
 
 func TestOpinionService_DeleteOpinion(t *testing.T) {
+	t.Parallel()
 	opinionRepo := &mockOpinionRepository{
 		delete: func(uint64, uint64) error {
 			return nil

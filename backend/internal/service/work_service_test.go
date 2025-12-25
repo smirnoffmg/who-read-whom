@@ -11,7 +11,9 @@ import (
 )
 
 func TestWorkService_CreateWork(t *testing.T) {
+	t.Parallel()
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
 		workRepo := &mockWorkRepository{}
 		writerRepo := &mockWriterRepository{
 			getByID: func(id uint64) (*domain.Writer, error) {
@@ -30,16 +32,18 @@ func TestWorkService_CreateWork(t *testing.T) {
 	})
 
 	t.Run("empty title", func(t *testing.T) {
+		t.Parallel()
 		workRepo := &mockWorkRepository{}
 		writerRepo := &mockWriterRepository{}
 		svc := service.NewWorkService(workRepo, writerRepo)
 
 		_, err := svc.CreateWork("", 1)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "title is required")
 	})
 
 	t.Run("author not found", func(t *testing.T) {
+		t.Parallel()
 		workRepo := &mockWorkRepository{}
 		writerRepo := &mockWriterRepository{
 			getByID: func(uint64) (*domain.Writer, error) {
@@ -49,13 +53,15 @@ func TestWorkService_CreateWork(t *testing.T) {
 		svc := service.NewWorkService(workRepo, writerRepo)
 
 		_, err := svc.CreateWork("Pride and Prejudice", 999)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "author not found")
 	})
 }
 
 func TestWorkService_GetWork(t *testing.T) {
+	t.Parallel()
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
 		expectedWork := domain.NewWork(1, "Pride and Prejudice", 1)
 		workRepo := &mockWorkRepository{
 			works: map[uint64]*domain.Work{
@@ -72,16 +78,18 @@ func TestWorkService_GetWork(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
+		t.Parallel()
 		workRepo := &mockWorkRepository{}
 		writerRepo := &mockWriterRepository{}
 		svc := service.NewWorkService(workRepo, writerRepo)
 
 		_, err := svc.GetWork(999)
-		assert.Error(t, err)
+		require.Error(t, err)
 	})
 }
 
 func TestWorkService_GetWorksByAuthor(t *testing.T) {
+	t.Parallel()
 	expectedWorks := []*domain.Work{
 		domain.NewWork(1, "Pride and Prejudice", 1),
 		domain.NewWork(2, "Sense and Sensibility", 1),
@@ -100,6 +108,7 @@ func TestWorkService_GetWorksByAuthor(t *testing.T) {
 }
 
 func TestWorkService_ListWorks(t *testing.T) {
+	t.Parallel()
 	expectedWorks := []*domain.Work{
 		domain.NewWork(1, "Pride and Prejudice", 1),
 		domain.NewWork(2, "Sense and Sensibility", 1),
@@ -119,7 +128,9 @@ func TestWorkService_ListWorks(t *testing.T) {
 }
 
 func TestWorkService_UpdateWork(t *testing.T) {
+	t.Parallel()
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
 		workRepo := &mockWorkRepository{
 			works: make(map[uint64]*domain.Work),
 		}
@@ -138,16 +149,18 @@ func TestWorkService_UpdateWork(t *testing.T) {
 	})
 
 	t.Run("empty title", func(t *testing.T) {
+		t.Parallel()
 		workRepo := &mockWorkRepository{}
 		writerRepo := &mockWriterRepository{}
 		svc := service.NewWorkService(workRepo, writerRepo)
 
 		err := svc.UpdateWork(1, "", 1)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "title is required")
 	})
 
 	t.Run("author not found", func(t *testing.T) {
+		t.Parallel()
 		workRepo := &mockWorkRepository{}
 		writerRepo := &mockWriterRepository{
 			getByID: func(uint64) (*domain.Writer, error) {
@@ -157,12 +170,13 @@ func TestWorkService_UpdateWork(t *testing.T) {
 		svc := service.NewWorkService(workRepo, writerRepo)
 
 		err := svc.UpdateWork(1, "Pride and Prejudice", 999)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "author not found")
 	})
 }
 
 func TestWorkService_DeleteWork(t *testing.T) {
+	t.Parallel()
 	workRepo := &mockWorkRepository{
 		works: map[uint64]*domain.Work{
 			1: domain.NewWork(1, "Pride and Prejudice", 1),

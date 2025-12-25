@@ -11,6 +11,7 @@ import (
 )
 
 func TestWriterRepository_Create(t *testing.T) {
+	t.Parallel()
 	db, cleanup := testutils.SetupTestDB(t)
 	defer cleanup()
 
@@ -22,6 +23,7 @@ func TestWriterRepository_Create(t *testing.T) {
 }
 
 func TestWriterRepository_GetByID(t *testing.T) {
+	t.Parallel()
 	db, cleanup := testutils.SetupTestDB(t)
 	defer cleanup()
 
@@ -39,6 +41,7 @@ func TestWriterRepository_GetByID(t *testing.T) {
 }
 
 func TestWriterRepository_List(t *testing.T) {
+	t.Parallel()
 	db, cleanup := testutils.SetupTestDB(t)
 	defer cleanup()
 
@@ -56,6 +59,7 @@ func TestWriterRepository_List(t *testing.T) {
 }
 
 func TestWriterRepository_Update(t *testing.T) {
+	t.Parallel()
 	db, cleanup := testutils.SetupTestDB(t)
 	defer cleanup()
 
@@ -75,6 +79,7 @@ func TestWriterRepository_Update(t *testing.T) {
 }
 
 func TestWriterRepository_Delete(t *testing.T) {
+	t.Parallel()
 	db, cleanup := testutils.SetupTestDB(t)
 	defer cleanup()
 
@@ -87,5 +92,5 @@ func TestWriterRepository_Delete(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = repo.GetByID(1)
-	assert.Error(t, err)
+	require.Error(t, err)
 }

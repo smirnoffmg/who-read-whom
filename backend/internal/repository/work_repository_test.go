@@ -11,6 +11,7 @@ import (
 )
 
 func TestWorkRepository_Create(t *testing.T) {
+	t.Parallel()
 	db, cleanup := testutils.SetupTestDB(t)
 	defer cleanup()
 
@@ -26,6 +27,7 @@ func TestWorkRepository_Create(t *testing.T) {
 }
 
 func TestWorkRepository_GetByID(t *testing.T) {
+	t.Parallel()
 	db, cleanup := testutils.SetupTestDB(t)
 	defer cleanup()
 
@@ -46,6 +48,7 @@ func TestWorkRepository_GetByID(t *testing.T) {
 }
 
 func TestWorkRepository_GetByAuthorID(t *testing.T) {
+	t.Parallel()
 	db, cleanup := testutils.SetupTestDB(t)
 	defer cleanup()
 
@@ -66,6 +69,7 @@ func TestWorkRepository_GetByAuthorID(t *testing.T) {
 }
 
 func TestWorkRepository_List(t *testing.T) {
+	t.Parallel()
 	db, cleanup := testutils.SetupTestDB(t)
 	defer cleanup()
 
@@ -86,6 +90,7 @@ func TestWorkRepository_List(t *testing.T) {
 }
 
 func TestWorkRepository_Update(t *testing.T) {
+	t.Parallel()
 	db, cleanup := testutils.SetupTestDB(t)
 	defer cleanup()
 
@@ -108,6 +113,7 @@ func TestWorkRepository_Update(t *testing.T) {
 }
 
 func TestWorkRepository_Delete(t *testing.T) {
+	t.Parallel()
 	db, cleanup := testutils.SetupTestDB(t)
 	defer cleanup()
 
@@ -124,5 +130,5 @@ func TestWorkRepository_Delete(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = workRepo.GetByID(1)
-	assert.Error(t, err)
+	require.Error(t, err)
 }

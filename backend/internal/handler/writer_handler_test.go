@@ -63,10 +63,10 @@ func (m *mockWriterService) DeleteWriter(id uint64) error {
 	return nil
 }
 
-func setupWriterHandlerRouter(service service.WriterService) *gin.Engine {
+func setupWriterHandlerRouter(writerService service.WriterService) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
-	writerHandler := handler.NewWriterHandler(service)
+	writerHandler := handler.NewWriterHandler(writerService)
 	router.POST("/writers", writerHandler.Create)
 	router.GET("/writers", writerHandler.List)
 	router.GET("/writers/:id", writerHandler.GetByID)
@@ -76,7 +76,9 @@ func setupWriterHandlerRouter(service service.WriterService) *gin.Engine {
 }
 
 func TestWriterHandler_Create(t *testing.T) {
+	t.Parallel()
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
 		svc := &mockWriterService{}
 		router := setupWriterHandlerRouter(svc)
 
@@ -99,6 +101,7 @@ func TestWriterHandler_Create(t *testing.T) {
 	})
 
 	t.Run("missing name", func(t *testing.T) {
+		t.Parallel()
 		svc := &mockWriterService{}
 		router := setupWriterHandlerRouter(svc)
 
@@ -116,6 +119,7 @@ func TestWriterHandler_Create(t *testing.T) {
 	})
 
 	t.Run("service error", func(t *testing.T) {
+		t.Parallel()
 		svc := &mockWriterService{
 			create: func(string, int, *int, *string) (*domain.Writer, error) {
 				return nil, assert.AnError
@@ -139,7 +143,9 @@ func TestWriterHandler_Create(t *testing.T) {
 }
 
 func TestWriterHandler_GetByID(t *testing.T) {
+	t.Parallel()
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
 		svc := &mockWriterService{
 			getByID: func(id uint64) (*domain.Writer, error) {
 				return domain.NewWriter(id, "Jane Austen", 1775, nil, nil), nil
@@ -160,6 +166,7 @@ func TestWriterHandler_GetByID(t *testing.T) {
 	})
 
 	t.Run("invalid id", func(t *testing.T) {
+		t.Parallel()
 		svc := &mockWriterService{}
 		router := setupWriterHandlerRouter(svc)
 
@@ -172,6 +179,7 @@ func TestWriterHandler_GetByID(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
+		t.Parallel()
 		svc := &mockWriterService{
 			getByID: func(uint64) (*domain.Writer, error) {
 				return nil, assert.AnError
@@ -189,7 +197,9 @@ func TestWriterHandler_GetByID(t *testing.T) {
 }
 
 func TestWriterHandler_List(t *testing.T) {
+	t.Parallel()
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
 		svc := &mockWriterService{
 			list: func(int, int) ([]*domain.Writer, error) {
 				return []*domain.Writer{
@@ -211,10 +221,29 @@ func TestWriterHandler_List(t *testing.T) {
 		require.NoError(t, err)
 		assert.Len(t, response, 2)
 	})
+
+	t.Run("service error", func(t *testing.T) {
+		t.Parallel()
+		svc := &mockWriterService{
+			list: func(int, int) ([]*domain.Writer, error) {
+				return nil, assert.AnError
+			},
+		}
+		router := setupWriterHandlerRouter(svc)
+
+		req := httptest.NewRequest(http.MethodGet, "/writers", http.NoBody)
+		w := httptest.NewRecorder()
+
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
+	})
 }
 
 func TestWriterHandler_Update(t *testing.T) {
+	t.Parallel()
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
 		svc := &mockWriterService{
 			update: func(uint64, string, int, *int, *string) error {
 				return nil
@@ -235,10 +264,72 @@ func TestWriterHandler_Update(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, w.Code)
 	})
+
+	t.Run("invalid id", func(t *testing.T) {
+		t.Parallel()
+		svc := &mockWriterService{}
+		router := setupWriterHandlerRouter(svc)
+
+		reqBody := map[string]interface{}{
+			"name":       "Jane Austen",
+			"birth_year": 1775,
+		}
+		body, _ := json.Marshal(reqBody)
+		req := httptest.NewRequest(http.MethodPut, "/writers/invalid", bytes.NewBuffer(body))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("missing name", func(t *testing.T) {
+		t.Parallel()
+		svc := &mockWriterService{}
+		router := setupWriterHandlerRouter(svc)
+
+		reqBody := map[string]interface{}{
+			"birth_year": 1775,
+		}
+		body, _ := json.Marshal(reqBody)
+		req := httptest.NewRequest(http.MethodPut, "/writers/1", bytes.NewBuffer(body))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("service error", func(t *testing.T) {
+		t.Parallel()
+		svc := &mockWriterService{
+			update: func(uint64, string, int, *int, *string) error {
+				return assert.AnError
+			},
+		}
+		router := setupWriterHandlerRouter(svc)
+
+		reqBody := map[string]interface{}{
+			"name":       "Jane Austen",
+			"birth_year": 1775,
+		}
+		body, _ := json.Marshal(reqBody)
+		req := httptest.NewRequest(http.MethodPut, "/writers/1", bytes.NewBuffer(body))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
 }
 
 func TestWriterHandler_Delete(t *testing.T) {
+	t.Parallel()
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
 		svc := &mockWriterService{
 			delete: func(uint64) error {
 				return nil
@@ -252,5 +343,35 @@ func TestWriterHandler_Delete(t *testing.T) {
 		router.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusOK, w.Code)
+	})
+
+	t.Run("invalid id", func(t *testing.T) {
+		t.Parallel()
+		svc := &mockWriterService{}
+		router := setupWriterHandlerRouter(svc)
+
+		req := httptest.NewRequest(http.MethodDelete, "/writers/invalid", http.NoBody)
+		w := httptest.NewRecorder()
+
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("service error", func(t *testing.T) {
+		t.Parallel()
+		svc := &mockWriterService{
+			delete: func(uint64) error {
+				return assert.AnError
+			},
+		}
+		router := setupWriterHandlerRouter(svc)
+
+		req := httptest.NewRequest(http.MethodDelete, "/writers/1", http.NoBody)
+		w := httptest.NewRecorder()
+
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
 }
