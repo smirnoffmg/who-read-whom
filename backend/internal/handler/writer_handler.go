@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/what-writers-like/backend/internal/domain"
 	"github.com/what-writers-like/backend/internal/service"
 )
 
@@ -78,6 +79,7 @@ func (h *WriterHandler) GetByID(c *gin.Context) {
 func (h *WriterHandler) List(c *gin.Context) {
 	limitStr := c.DefaultQuery("limit", "10")
 	offsetStr := c.DefaultQuery("offset", "0")
+	searchQuery := c.Query("search")
 
 	limit, err := strconv.Atoi(limitStr)
 	if err != nil || limit <= 0 {
@@ -89,7 +91,13 @@ func (h *WriterHandler) List(c *gin.Context) {
 		offset = 0
 	}
 
-	writers, err := h.writerService.ListWriters(limit, offset)
+	var writers []*domain.Writer
+	if searchQuery != "" {
+		writers, err = h.writerService.SearchWriters(searchQuery, limit, offset)
+	} else {
+		writers, err = h.writerService.ListWriters(limit, offset)
+	}
+
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

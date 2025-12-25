@@ -12,6 +12,7 @@ type WorkService interface {
 	GetWork(id uint64) (*domain.Work, error)
 	GetWorksByAuthor(authorID uint64) ([]*domain.Work, error)
 	ListWorks(limit, offset int) ([]*domain.Work, error)
+	SearchWorks(query string, limit, offset int) ([]*domain.Work, error)
 	UpdateWork(id uint64, title string, authorID uint64) error
 	DeleteWork(id uint64) error
 }
@@ -70,12 +71,25 @@ func (s *workService) ListWorks(limit, offset int) ([]*domain.Work, error) {
 	return s.workRepo.List(limit, offset)
 }
 
+func (s *workService) SearchWorks(query string, limit, offset int) ([]*domain.Work, error) {
+	if query == "" {
+		return s.workRepo.List(limit, offset)
+	}
+	return s.workRepo.Search(query, limit, offset)
+}
+
 func (s *workService) UpdateWork(id uint64, title string, authorID uint64) error {
 	if title == "" {
 		return errors.New("title is required")
 	}
 
-	_, err := s.writerRepo.GetByID(authorID)
+	// Check if work exists
+	_, err := s.workRepo.GetByID(id)
+	if err != nil {
+		return errors.New("work not found")
+	}
+
+	_, err = s.writerRepo.GetByID(authorID)
 	if err != nil {
 		return errors.New("author not found")
 	}
@@ -85,5 +99,10 @@ func (s *workService) UpdateWork(id uint64, title string, authorID uint64) error
 }
 
 func (s *workService) DeleteWork(id uint64) error {
+	// Check if work exists
+	_, err := s.workRepo.GetByID(id)
+	if err != nil {
+		return errors.New("work not found")
+	}
 	return s.workRepo.Delete(id)
 }

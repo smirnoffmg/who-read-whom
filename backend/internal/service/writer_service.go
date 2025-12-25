@@ -11,6 +11,7 @@ type WriterService interface {
 	CreateWriter(name string, birthYear int, deathYear *int, bio *string) (*domain.Writer, error)
 	GetWriter(id uint64) (*domain.Writer, error)
 	ListWriters(limit, offset int) ([]*domain.Writer, error)
+	SearchWriters(query string, limit, offset int) ([]*domain.Writer, error)
 	UpdateWriter(id uint64, name string, birthYear int, deathYear *int, bio *string) error
 	DeleteWriter(id uint64) error
 }
@@ -63,6 +64,13 @@ func (s *writerService) ListWriters(limit, offset int) ([]*domain.Writer, error)
 	return s.writerRepo.List(limit, offset)
 }
 
+func (s *writerService) SearchWriters(query string, limit, offset int) ([]*domain.Writer, error) {
+	if query == "" {
+		return s.writerRepo.List(limit, offset)
+	}
+	return s.writerRepo.Search(query, limit, offset)
+}
+
 func (s *writerService) UpdateWriter(id uint64, name string, birthYear int, deathYear *int, bio *string) error {
 	if name == "" {
 		return errors.New("name is required")
@@ -71,11 +79,23 @@ func (s *writerService) UpdateWriter(id uint64, name string, birthYear int, deat
 		return errors.New("birth year must be positive")
 	}
 
+	// Check if writer exists
+	_, err := s.writerRepo.GetByID(id)
+	if err != nil {
+		return errors.New("writer not found")
+	}
+
 	writer := domain.NewWriter(id, name, birthYear, deathYear, bio)
 	return s.writerRepo.Update(writer)
 }
 
 func (s *writerService) DeleteWriter(id uint64) error {
+	// Check if writer exists
+	_, err := s.writerRepo.GetByID(id)
+	if err != nil {
+		return errors.New("writer not found")
+	}
+
 	works, err := s.workRepo.GetByAuthorID(id)
 	if err != nil {
 		return err

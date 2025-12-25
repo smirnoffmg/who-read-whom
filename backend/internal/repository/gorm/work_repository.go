@@ -56,6 +56,26 @@ func (r *workRepository) List(limit, offset int) ([]*domain.Work, error) {
 	return works, nil
 }
 
+func (r *workRepository) Search(query string, limit, offset int) ([]*domain.Work, error) {
+	var models []database.WorkModel
+	// Use PostgreSQL fuzzy search with similarity threshold of 0.3
+	// similarity() function from pg_trgm returns a value between 0 and 1
+	searchSQL := `
+		SELECT * FROM works 
+		WHERE similarity(title, ?) > 0.3
+		ORDER BY similarity(title, ?) DESC
+		LIMIT ? OFFSET ?
+	`
+	if err := r.db.Raw(searchSQL, query, query, limit, offset).Scan(&models).Error; err != nil {
+		return nil, err
+	}
+	works := make([]*domain.Work, len(models))
+	for i, m := range models {
+		works[i] = domain.NewWork(m.ID, m.Title, m.AuthorID)
+	}
+	return works, nil
+}
+
 func (r *workRepository) Update(work *domain.Work) error {
 	model := &database.WorkModel{
 		ID:       work.ID(),

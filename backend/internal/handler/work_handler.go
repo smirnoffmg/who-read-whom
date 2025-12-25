@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/what-writers-like/backend/internal/domain"
 	"github.com/what-writers-like/backend/internal/service"
 )
 
@@ -96,6 +97,7 @@ func (h *WorkHandler) GetByAuthor(c *gin.Context) {
 func (h *WorkHandler) List(c *gin.Context) {
 	limitStr := c.DefaultQuery("limit", "10")
 	offsetStr := c.DefaultQuery("offset", "0")
+	searchQuery := c.Query("search")
 
 	limit, err := strconv.Atoi(limitStr)
 	if err != nil || limit <= 0 {
@@ -107,7 +109,13 @@ func (h *WorkHandler) List(c *gin.Context) {
 		offset = 0
 	}
 
-	works, err := h.workService.ListWorks(limit, offset)
+	var works []*domain.Work
+	if searchQuery != "" {
+		works, err = h.workService.SearchWorks(searchQuery, limit, offset)
+	} else {
+		works, err = h.workService.ListWorks(limit, offset)
+	}
+
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

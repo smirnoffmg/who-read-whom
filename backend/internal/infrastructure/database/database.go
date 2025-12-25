@@ -24,11 +24,42 @@ func NewDatabase(cfg *config.Config) (*Database, error) {
 		return nil, fmt.Errorf("failed to run migrations: %w", err)
 	}
 
+	if err := enableExtensions(db); err != nil {
+		return nil, fmt.Errorf("failed to enable extensions: %w", err)
+	}
+
 	if err := addConstraints(db); err != nil {
 		return nil, fmt.Errorf("failed to add constraints: %w", err)
 	}
 
+	if err := createSearchIndexes(db); err != nil {
+		return nil, fmt.Errorf("failed to create search indexes: %w", err)
+	}
+
 	return &Database{db: db}, nil
+}
+
+func enableExtensions(db *gorm.DB) error {
+	// Enable pg_trgm extension for fuzzy search
+	if err := db.Exec("CREATE EXTENSION IF NOT EXISTS pg_trgm").Error; err != nil {
+		return fmt.Errorf("failed to enable pg_trgm extension: %w", err)
+	}
+	return nil
+}
+
+func createSearchIndexes(db *gorm.DB) error {
+	// Create GIN indexes for fuzzy search on writers table
+	indexesSQL := `
+		CREATE INDEX IF NOT EXISTS idx_writers_name_trgm ON writers USING gin(name gin_trgm_ops);
+		CREATE INDEX IF NOT EXISTS idx_writers_bio_trgm ON writers USING gin(bio gin_trgm_ops) WHERE bio IS NOT NULL;
+		CREATE INDEX IF NOT EXISTS idx_works_title_trgm ON works USING gin(title gin_trgm_ops);
+	`
+
+	if err := db.Exec(indexesSQL).Error; err != nil {
+		return fmt.Errorf("failed to create search indexes: %w", err)
+	}
+
+	return nil
 }
 
 func addConstraints(db *gorm.DB) error {

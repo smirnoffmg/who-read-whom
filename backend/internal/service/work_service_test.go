@@ -1,29 +1,29 @@
 package service_test
 
 import (
-	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/what-writers-like/backend/internal/domain"
+	"github.com/what-writers-like/backend/internal/repository/gorm"
 	"github.com/what-writers-like/backend/internal/service"
+	"github.com/what-writers-like/backend/internal/testutils"
 )
 
 func TestWorkService_CreateWork(t *testing.T) {
 	t.Parallel()
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
-		workRepo := &mockWorkRepository{}
-		writerRepo := &mockWriterRepository{
-			getByID: func(id uint64) (*domain.Writer, error) {
-				if id == 1 {
-					return domain.NewWriter(1, "Jane Austen", 1775, nil, nil), nil
-				}
-				return nil, errors.New("not found")
-			},
-		}
+		db, cleanup := testutils.SetupTestDB(t)
+		defer cleanup()
+
+		workRepo := gorm.NewWorkRepository(db)
+		writerRepo := gorm.NewWriterRepository(db)
 		svc := service.NewWorkService(workRepo, writerRepo)
+
+		writer := domain.NewWriter(1, "Jane Austen", 1775, nil, nil)
+		require.NoError(t, writerRepo.Create(writer))
 
 		work, err := svc.CreateWork("Pride and Prejudice", 1)
 		require.NoError(t, err)
@@ -33,8 +33,11 @@ func TestWorkService_CreateWork(t *testing.T) {
 
 	t.Run("empty title", func(t *testing.T) {
 		t.Parallel()
-		workRepo := &mockWorkRepository{}
-		writerRepo := &mockWriterRepository{}
+		db, cleanup := testutils.SetupTestDB(t)
+		defer cleanup()
+
+		workRepo := gorm.NewWorkRepository(db)
+		writerRepo := gorm.NewWriterRepository(db)
 		svc := service.NewWorkService(workRepo, writerRepo)
 
 		_, err := svc.CreateWork("", 1)
@@ -44,12 +47,11 @@ func TestWorkService_CreateWork(t *testing.T) {
 
 	t.Run("author not found", func(t *testing.T) {
 		t.Parallel()
-		workRepo := &mockWorkRepository{}
-		writerRepo := &mockWriterRepository{
-			getByID: func(uint64) (*domain.Writer, error) {
-				return nil, errors.New("not found")
-			},
-		}
+		db, cleanup := testutils.SetupTestDB(t)
+		defer cleanup()
+
+		workRepo := gorm.NewWorkRepository(db)
+		writerRepo := gorm.NewWriterRepository(db)
 		svc := service.NewWorkService(workRepo, writerRepo)
 
 		_, err := svc.CreateWork("Pride and Prejudice", 999)
@@ -62,14 +64,15 @@ func TestWorkService_GetWork(t *testing.T) {
 	t.Parallel()
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
-		expectedWork := domain.NewWork(1, "Pride and Prejudice", 1)
-		workRepo := &mockWorkRepository{
-			works: map[uint64]*domain.Work{
-				1: expectedWork,
-			},
-		}
-		writerRepo := &mockWriterRepository{}
+		db, cleanup := testutils.SetupTestDB(t)
+		defer cleanup()
+
+		workRepo := gorm.NewWorkRepository(db)
+		writerRepo := gorm.NewWriterRepository(db)
 		svc := service.NewWorkService(workRepo, writerRepo)
+
+		expectedWork := domain.NewWork(1, "Pride and Prejudice", 1)
+		require.NoError(t, workRepo.Create(expectedWork))
 
 		work, err := svc.GetWork(1)
 		require.NoError(t, err)
@@ -79,8 +82,11 @@ func TestWorkService_GetWork(t *testing.T) {
 
 	t.Run("not found", func(t *testing.T) {
 		t.Parallel()
-		workRepo := &mockWorkRepository{}
-		writerRepo := &mockWriterRepository{}
+		db, cleanup := testutils.SetupTestDB(t)
+		defer cleanup()
+
+		workRepo := gorm.NewWorkRepository(db)
+		writerRepo := gorm.NewWriterRepository(db)
 		svc := service.NewWorkService(workRepo, writerRepo)
 
 		_, err := svc.GetWork(999)
@@ -90,17 +96,20 @@ func TestWorkService_GetWork(t *testing.T) {
 
 func TestWorkService_GetWorksByAuthor(t *testing.T) {
 	t.Parallel()
-	expectedWorks := []*domain.Work{
-		domain.NewWork(1, "Pride and Prejudice", 1),
-		domain.NewWork(2, "Sense and Sensibility", 1),
-	}
-	workRepo := &mockWorkRepository{
-		getByAuthorID: func(uint64) ([]*domain.Work, error) {
-			return expectedWorks, nil
-		},
-	}
-	writerRepo := &mockWriterRepository{}
+	db, cleanup := testutils.SetupTestDB(t)
+	defer cleanup()
+
+	workRepo := gorm.NewWorkRepository(db)
+	writerRepo := gorm.NewWriterRepository(db)
 	svc := service.NewWorkService(workRepo, writerRepo)
+
+	writer := domain.NewWriter(1, "Jane Austen", 1775, nil, nil)
+	require.NoError(t, writerRepo.Create(writer))
+
+	work1 := domain.NewWork(1, "Pride and Prejudice", 1)
+	work2 := domain.NewWork(2, "Sense and Sensibility", 1)
+	require.NoError(t, workRepo.Create(work1))
+	require.NoError(t, workRepo.Create(work2))
 
 	works, err := svc.GetWorksByAuthor(1)
 	require.NoError(t, err)
@@ -109,18 +118,17 @@ func TestWorkService_GetWorksByAuthor(t *testing.T) {
 
 func TestWorkService_ListWorks(t *testing.T) {
 	t.Parallel()
-	expectedWorks := []*domain.Work{
-		domain.NewWork(1, "Pride and Prejudice", 1),
-		domain.NewWork(2, "Sense and Sensibility", 1),
-	}
-	workRepo := &mockWorkRepository{
-		works: map[uint64]*domain.Work{
-			1: expectedWorks[0],
-			2: expectedWorks[1],
-		},
-	}
-	writerRepo := &mockWriterRepository{}
+	db, cleanup := testutils.SetupTestDB(t)
+	defer cleanup()
+
+	workRepo := gorm.NewWorkRepository(db)
+	writerRepo := gorm.NewWriterRepository(db)
 	svc := service.NewWorkService(workRepo, writerRepo)
+
+	work1 := domain.NewWork(1, "Pride and Prejudice", 1)
+	work2 := domain.NewWork(2, "Sense and Sensibility", 1)
+	require.NoError(t, workRepo.Create(work1))
+	require.NoError(t, workRepo.Create(work2))
 
 	works, err := svc.ListWorks(10, 0)
 	require.NoError(t, err)
@@ -131,27 +139,33 @@ func TestWorkService_UpdateWork(t *testing.T) {
 	t.Parallel()
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
-		workRepo := &mockWorkRepository{
-			works: make(map[uint64]*domain.Work),
-		}
-		writerRepo := &mockWriterRepository{
-			getByID: func(id uint64) (*domain.Writer, error) {
-				if id == 1 {
-					return domain.NewWriter(1, "Jane Austen", 1775, nil, nil), nil
-				}
-				return nil, errors.New("not found")
-			},
-		}
+		db, cleanup := testutils.SetupTestDB(t)
+		defer cleanup()
+
+		workRepo := gorm.NewWorkRepository(db)
+		writerRepo := gorm.NewWriterRepository(db)
 		svc := service.NewWorkService(workRepo, writerRepo)
 
+		writer := domain.NewWriter(1, "Jane Austen", 1775, nil, nil)
+		require.NoError(t, writerRepo.Create(writer))
+		work := domain.NewWork(1, "Pride and Prejudice", 1)
+		require.NoError(t, workRepo.Create(work))
+
 		err := svc.UpdateWork(1, "Pride and Prejudice (Revised)", 1)
-		assert.NoError(t, err)
+		require.NoError(t, err)
+
+		updated, err := workRepo.GetByID(1)
+		require.NoError(t, err)
+		assert.Equal(t, "Pride and Prejudice (Revised)", updated.Title())
 	})
 
 	t.Run("empty title", func(t *testing.T) {
 		t.Parallel()
-		workRepo := &mockWorkRepository{}
-		writerRepo := &mockWriterRepository{}
+		db, cleanup := testutils.SetupTestDB(t)
+		defer cleanup()
+
+		workRepo := gorm.NewWorkRepository(db)
+		writerRepo := gorm.NewWriterRepository(db)
 		svc := service.NewWorkService(workRepo, writerRepo)
 
 		err := svc.UpdateWork(1, "", 1)
@@ -159,15 +173,33 @@ func TestWorkService_UpdateWork(t *testing.T) {
 		assert.Contains(t, err.Error(), "title is required")
 	})
 
+	t.Run("work not found", func(t *testing.T) {
+		t.Parallel()
+		db, cleanup := testutils.SetupTestDB(t)
+		defer cleanup()
+
+		workRepo := gorm.NewWorkRepository(db)
+		writerRepo := gorm.NewWriterRepository(db)
+		svc := service.NewWorkService(workRepo, writerRepo)
+
+		err := svc.UpdateWork(999, "Pride and Prejudice", 1)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "work not found")
+	})
+
 	t.Run("author not found", func(t *testing.T) {
 		t.Parallel()
-		workRepo := &mockWorkRepository{}
-		writerRepo := &mockWriterRepository{
-			getByID: func(uint64) (*domain.Writer, error) {
-				return nil, errors.New("not found")
-			},
-		}
+		db, cleanup := testutils.SetupTestDB(t)
+		defer cleanup()
+
+		workRepo := gorm.NewWorkRepository(db)
+		writerRepo := gorm.NewWriterRepository(db)
 		svc := service.NewWorkService(workRepo, writerRepo)
+
+		writer := domain.NewWriter(1, "Jane Austen", 1775, nil, nil)
+		require.NoError(t, writerRepo.Create(writer))
+		work := domain.NewWork(1, "Pride and Prejudice", 1)
+		require.NoError(t, workRepo.Create(work))
 
 		err := svc.UpdateWork(1, "Pride and Prejudice", 999)
 		require.Error(t, err)
@@ -177,17 +209,19 @@ func TestWorkService_UpdateWork(t *testing.T) {
 
 func TestWorkService_DeleteWork(t *testing.T) {
 	t.Parallel()
-	workRepo := &mockWorkRepository{
-		works: map[uint64]*domain.Work{
-			1: domain.NewWork(1, "Pride and Prejudice", 1),
-		},
-		delete: func(uint64) error {
-			return nil
-		},
-	}
-	writerRepo := &mockWriterRepository{}
+	db, cleanup := testutils.SetupTestDB(t)
+	defer cleanup()
+
+	workRepo := gorm.NewWorkRepository(db)
+	writerRepo := gorm.NewWriterRepository(db)
 	svc := service.NewWorkService(workRepo, writerRepo)
 
+	work := domain.NewWork(1, "Pride and Prejudice", 1)
+	require.NoError(t, workRepo.Create(work))
+
 	err := svc.DeleteWork(1)
-	assert.NoError(t, err)
+	require.NoError(t, err)
+
+	_, err = workRepo.GetByID(1)
+	require.Error(t, err)
 }

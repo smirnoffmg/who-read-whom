@@ -46,6 +46,28 @@ func (r *writerRepository) List(limit, offset int) ([]*domain.Writer, error) {
 	return writers, nil
 }
 
+func (r *writerRepository) Search(query string, limit, offset int) ([]*domain.Writer, error) {
+	var models []database.WriterModel
+	// Use PostgreSQL fuzzy search with similarity threshold of 0.3
+	// similarity() function from pg_trgm returns a value between 0 and 1
+	searchSQL := `
+		SELECT * FROM writers 
+		WHERE similarity(name, ?) > 0.3 
+		   OR (bio IS NOT NULL AND similarity(bio, ?) > 0.3)
+		ORDER BY 
+			GREATEST(similarity(name, ?), COALESCE(similarity(bio, ?), 0)) DESC
+		LIMIT ? OFFSET ?
+	`
+	if err := r.db.Raw(searchSQL, query, query, query, query, limit, offset).Scan(&models).Error; err != nil {
+		return nil, err
+	}
+	writers := make([]*domain.Writer, len(models))
+	for i, m := range models {
+		writers[i] = domain.NewWriter(m.ID, m.Name, m.BirthYear, m.DeathYear, m.Bio)
+	}
+	return writers, nil
+}
+
 func (r *writerRepository) Update(writer *domain.Writer) error {
 	model := &database.WriterModel{
 		ID:        writer.ID(),

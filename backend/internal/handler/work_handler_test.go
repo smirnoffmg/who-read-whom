@@ -12,79 +12,43 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/what-writers-like/backend/internal/domain"
 	"github.com/what-writers-like/backend/internal/handler"
+	"github.com/what-writers-like/backend/internal/repository"
+	"github.com/what-writers-like/backend/internal/repository/gorm"
 	"github.com/what-writers-like/backend/internal/service"
+	"github.com/what-writers-like/backend/internal/testutils"
 )
 
-type mockWorkService struct {
-	create      func(string, uint64) (*domain.Work, error)
-	getByID     func(uint64) (*domain.Work, error)
-	getByAuthor func(uint64) ([]*domain.Work, error)
-	list        func(int, int) ([]*domain.Work, error)
-	update      func(uint64, string, uint64) error
-	delete      func(uint64) error
-}
+func setupWorkHandlerRouter(
+	t *testing.T,
+) (*gin.Engine, repository.WorkRepository, repository.WriterRepository, func()) {
+	db, cleanup := testutils.SetupTestDB(t)
 
-func (m *mockWorkService) CreateWork(title string, authorID uint64) (*domain.Work, error) {
-	if m.create != nil {
-		return m.create(title, authorID)
-	}
-	return domain.NewWork(1, title, authorID), nil
-}
+	workRepo := gorm.NewWorkRepository(db)
+	writerRepo := gorm.NewWriterRepository(db)
+	workService := service.NewWorkService(workRepo, writerRepo)
 
-func (m *mockWorkService) GetWork(id uint64) (*domain.Work, error) {
-	if m.getByID != nil {
-		return m.getByID(id)
-	}
-	return domain.NewWork(id, "Test Work", 1), nil
-}
-
-func (m *mockWorkService) GetWorksByAuthor(authorID uint64) ([]*domain.Work, error) {
-	if m.getByAuthor != nil {
-		return m.getByAuthor(authorID)
-	}
-	return []*domain.Work{}, nil
-}
-
-func (m *mockWorkService) ListWorks(limit, offset int) ([]*domain.Work, error) {
-	if m.list != nil {
-		return m.list(limit, offset)
-	}
-	return []*domain.Work{}, nil
-}
-
-func (m *mockWorkService) UpdateWork(id uint64, title string, authorID uint64) error {
-	if m.update != nil {
-		return m.update(id, title, authorID)
-	}
-	return nil
-}
-
-func (m *mockWorkService) DeleteWork(id uint64) error {
-	if m.delete != nil {
-		return m.delete(id)
-	}
-	return nil
-}
-
-func setupWorkHandlerRouter(svc service.WorkService) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
-	workHandler := handler.NewWorkHandler(svc)
+	workHandler := handler.NewWorkHandler(workService)
 	router.POST("/works", workHandler.Create)
 	router.GET("/works", workHandler.List)
 	router.GET("/works/:id", workHandler.GetByID)
 	router.GET("/works/author/:author_id", workHandler.GetByAuthor)
 	router.PUT("/works/:id", workHandler.Update)
 	router.DELETE("/works/:id", workHandler.Delete)
-	return router
+	return router, workRepo, writerRepo, cleanup
 }
 
 func TestWorkHandler_Create(t *testing.T) {
 	t.Parallel()
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
-		svc := &mockWorkService{}
-		router := setupWorkHandlerRouter(svc)
+		router, _, writerRepo, cleanup := setupWorkHandlerRouter(t)
+		defer cleanup()
+
+		// Create writer first
+		writer := domain.NewWriter(1, "Jane Austen", 1775, nil, nil)
+		require.NoError(t, writerRepo.Create(writer))
 
 		reqBody := map[string]interface{}{
 			"title":     "Pride and Prejudice",
@@ -106,8 +70,8 @@ func TestWorkHandler_Create(t *testing.T) {
 
 	t.Run("missing title", func(t *testing.T) {
 		t.Parallel()
-		svc := &mockWorkService{}
-		router := setupWorkHandlerRouter(svc)
+		router, _, _, cleanup := setupWorkHandlerRouter(t)
+		defer cleanup()
 
 		reqBody := map[string]interface{}{
 			"author_id": 1,
@@ -122,18 +86,14 @@ func TestWorkHandler_Create(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
 
-	t.Run("service error", func(t *testing.T) {
+	t.Run("author not found", func(t *testing.T) {
 		t.Parallel()
-		svc := &mockWorkService{
-			create: func(string, uint64) (*domain.Work, error) {
-				return nil, assert.AnError
-			},
-		}
-		router := setupWorkHandlerRouter(svc)
+		router, _, _, cleanup := setupWorkHandlerRouter(t)
+		defer cleanup()
 
 		reqBody := map[string]interface{}{
 			"title":     "Pride and Prejudice",
-			"author_id": 1,
+			"author_id": 999,
 		}
 		body, _ := json.Marshal(reqBody)
 		req := httptest.NewRequest(http.MethodPost, "/works", bytes.NewBuffer(body))
@@ -150,12 +110,14 @@ func TestWorkHandler_GetByID(t *testing.T) {
 	t.Parallel()
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
-		svc := &mockWorkService{
-			getByID: func(id uint64) (*domain.Work, error) {
-				return domain.NewWork(id, "Pride and Prejudice", 1), nil
-			},
-		}
-		router := setupWorkHandlerRouter(svc)
+		router, workRepo, writerRepo, cleanup := setupWorkHandlerRouter(t)
+		defer cleanup()
+
+		// Create writer and work first
+		writer := domain.NewWriter(1, "Jane Austen", 1775, nil, nil)
+		require.NoError(t, writerRepo.Create(writer))
+		work := domain.NewWork(1, "Pride and Prejudice", 1)
+		require.NoError(t, workRepo.Create(work))
 
 		req := httptest.NewRequest(http.MethodGet, "/works/1", http.NoBody)
 		w := httptest.NewRecorder()
@@ -171,8 +133,8 @@ func TestWorkHandler_GetByID(t *testing.T) {
 
 	t.Run("invalid id", func(t *testing.T) {
 		t.Parallel()
-		svc := &mockWorkService{}
-		router := setupWorkHandlerRouter(svc)
+		router, _, _, cleanup := setupWorkHandlerRouter(t)
+		defer cleanup()
 
 		req := httptest.NewRequest(http.MethodGet, "/works/invalid", http.NoBody)
 		w := httptest.NewRecorder()
@@ -184,12 +146,8 @@ func TestWorkHandler_GetByID(t *testing.T) {
 
 	t.Run("not found", func(t *testing.T) {
 		t.Parallel()
-		svc := &mockWorkService{
-			getByID: func(uint64) (*domain.Work, error) {
-				return nil, assert.AnError
-			},
-		}
-		router := setupWorkHandlerRouter(svc)
+		router, _, _, cleanup := setupWorkHandlerRouter(t)
+		defer cleanup()
 
 		req := httptest.NewRequest(http.MethodGet, "/works/999", http.NoBody)
 		w := httptest.NewRecorder()
@@ -204,15 +162,15 @@ func TestWorkHandler_GetByAuthor(t *testing.T) {
 	t.Parallel()
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
-		svc := &mockWorkService{
-			getByAuthor: func(uint64) ([]*domain.Work, error) {
-				return []*domain.Work{
-					domain.NewWork(1, "Pride and Prejudice", 1),
-					domain.NewWork(2, "Sense and Sensibility", 1),
-				}, nil
-			},
-		}
-		router := setupWorkHandlerRouter(svc)
+		router, workRepo, writerRepo, cleanup := setupWorkHandlerRouter(t)
+		defer cleanup()
+
+		writer := domain.NewWriter(1, "Jane Austen", 1775, nil, nil)
+		require.NoError(t, writerRepo.Create(writer))
+		work1 := domain.NewWork(1, "Pride and Prejudice", 1)
+		work2 := domain.NewWork(2, "Sense and Sensibility", 1)
+		require.NoError(t, workRepo.Create(work1))
+		require.NoError(t, workRepo.Create(work2))
 
 		req := httptest.NewRequest(http.MethodGet, "/works/author/1", http.NoBody)
 		w := httptest.NewRecorder()
@@ -228,8 +186,8 @@ func TestWorkHandler_GetByAuthor(t *testing.T) {
 
 	t.Run("invalid author_id", func(t *testing.T) {
 		t.Parallel()
-		svc := &mockWorkService{}
-		router := setupWorkHandlerRouter(svc)
+		router, _, _, cleanup := setupWorkHandlerRouter(t)
+		defer cleanup()
 
 		req := httptest.NewRequest(http.MethodGet, "/works/author/invalid", http.NoBody)
 		w := httptest.NewRecorder()
@@ -244,15 +202,15 @@ func TestWorkHandler_List(t *testing.T) {
 	t.Parallel()
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
-		svc := &mockWorkService{
-			list: func(int, int) ([]*domain.Work, error) {
-				return []*domain.Work{
-					domain.NewWork(1, "Pride and Prejudice", 1),
-					domain.NewWork(2, "Sense and Sensibility", 1),
-				}, nil
-			},
-		}
-		router := setupWorkHandlerRouter(svc)
+		router, workRepo, writerRepo, cleanup := setupWorkHandlerRouter(t)
+		defer cleanup()
+
+		writer := domain.NewWriter(1, "Jane Austen", 1775, nil, nil)
+		require.NoError(t, writerRepo.Create(writer))
+		work1 := domain.NewWork(1, "Pride and Prejudice", 1)
+		work2 := domain.NewWork(2, "Sense and Sensibility", 1)
+		require.NoError(t, workRepo.Create(work1))
+		require.NoError(t, workRepo.Create(work2))
 
 		req := httptest.NewRequest(http.MethodGet, "/works", http.NoBody)
 		w := httptest.NewRecorder()
@@ -271,12 +229,13 @@ func TestWorkHandler_Update(t *testing.T) {
 	t.Parallel()
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
-		svc := &mockWorkService{
-			update: func(uint64, string, uint64) error {
-				return nil
-			},
-		}
-		router := setupWorkHandlerRouter(svc)
+		router, workRepo, writerRepo, cleanup := setupWorkHandlerRouter(t)
+		defer cleanup()
+
+		writer := domain.NewWriter(1, "Jane Austen", 1775, nil, nil)
+		require.NoError(t, writerRepo.Create(writer))
+		work := domain.NewWork(1, "Pride and Prejudice", 1)
+		require.NoError(t, workRepo.Create(work))
 
 		reqBody := map[string]interface{}{
 			"title":     "Pride and Prejudice (Revised)",
@@ -294,8 +253,8 @@ func TestWorkHandler_Update(t *testing.T) {
 
 	t.Run("missing title", func(t *testing.T) {
 		t.Parallel()
-		svc := &mockWorkService{}
-		router := setupWorkHandlerRouter(svc)
+		router, _, _, cleanup := setupWorkHandlerRouter(t)
+		defer cleanup()
 
 		reqBody := map[string]interface{}{
 			"author_id": 1,
@@ -315,12 +274,13 @@ func TestWorkHandler_Delete(t *testing.T) {
 	t.Parallel()
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
-		svc := &mockWorkService{
-			delete: func(uint64) error {
-				return nil
-			},
-		}
-		router := setupWorkHandlerRouter(svc)
+		router, workRepo, writerRepo, cleanup := setupWorkHandlerRouter(t)
+		defer cleanup()
+
+		writer := domain.NewWriter(1, "Jane Austen", 1775, nil, nil)
+		require.NoError(t, writerRepo.Create(writer))
+		work := domain.NewWork(1, "Pride and Prejudice", 1)
+		require.NoError(t, workRepo.Create(work))
 
 		req := httptest.NewRequest(http.MethodDelete, "/works/1", http.NoBody)
 		w := httptest.NewRecorder()

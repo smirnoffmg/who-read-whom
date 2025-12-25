@@ -12,84 +12,25 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/what-writers-like/backend/internal/domain"
 	"github.com/what-writers-like/backend/internal/handler"
+	"github.com/what-writers-like/backend/internal/repository"
+	"github.com/what-writers-like/backend/internal/repository/gorm"
 	"github.com/what-writers-like/backend/internal/service"
+	"github.com/what-writers-like/backend/internal/testutils"
 )
 
-type mockOpinionService struct {
-	create      func(uint64, uint64, bool, string, string, *string, *int) (*domain.Opinion, error)
-	getByWriter func(uint64) ([]*domain.Opinion, error)
-	getByWork   func(uint64) ([]*domain.Opinion, error)
-	getOpinion  func(uint64, uint64) (*domain.Opinion, error)
-	list        func(int, int) ([]*domain.Opinion, error)
-	update      func(uint64, uint64, bool, string, string, *string, *int) error
-	delete      func(uint64, uint64) error
-}
+func setupOpinionHandlerRouter(
+	t *testing.T,
+) (*gin.Engine, repository.OpinionRepository, repository.WriterRepository, repository.WorkRepository, func()) {
+	db, cleanup := testutils.SetupTestDB(t)
 
-func (m *mockOpinionService) CreateOpinion(
-	writerID, workID uint64,
-	sentiment bool,
-	quote, source string,
-	page *string,
-	statementYear *int,
-) (*domain.Opinion, error) {
-	if m.create != nil {
-		return m.create(writerID, workID, sentiment, quote, source, page, statementYear)
-	}
-	return domain.NewOpinion(writerID, workID, sentiment, quote, source, page, statementYear), nil
-}
+	opinionRepo := gorm.NewOpinionRepository(db)
+	writerRepo := gorm.NewWriterRepository(db)
+	workRepo := gorm.NewWorkRepository(db)
+	opinionService := service.NewOpinionService(opinionRepo, writerRepo, workRepo)
 
-func (m *mockOpinionService) GetOpinionsByWriter(writerID uint64) ([]*domain.Opinion, error) {
-	if m.getByWriter != nil {
-		return m.getByWriter(writerID)
-	}
-	return []*domain.Opinion{}, nil
-}
-
-func (m *mockOpinionService) GetOpinionsByWork(workID uint64) ([]*domain.Opinion, error) {
-	if m.getByWork != nil {
-		return m.getByWork(workID)
-	}
-	return []*domain.Opinion{}, nil
-}
-
-func (m *mockOpinionService) GetOpinion(writerID, workID uint64) (*domain.Opinion, error) {
-	if m.getOpinion != nil {
-		return m.getOpinion(writerID, workID)
-	}
-	return domain.NewOpinion(writerID, workID, true, "Quote", "Source", nil, nil), nil
-}
-
-func (m *mockOpinionService) ListOpinions(limit, offset int) ([]*domain.Opinion, error) {
-	if m.list != nil {
-		return m.list(limit, offset)
-	}
-	return []*domain.Opinion{}, nil
-}
-
-func (m *mockOpinionService) UpdateOpinion(
-	writerID, workID uint64,
-	sentiment bool,
-	quote, source string,
-	page *string,
-	statementYear *int,
-) error {
-	if m.update != nil {
-		return m.update(writerID, workID, sentiment, quote, source, page, statementYear)
-	}
-	return nil
-}
-
-func (m *mockOpinionService) DeleteOpinion(writerID, workID uint64) error {
-	if m.delete != nil {
-		return m.delete(writerID, workID)
-	}
-	return nil
-}
-
-func setupOpinionHandlerRouter(svc service.OpinionService) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
-	opinionHandler := handler.NewOpinionHandler(svc)
+	opinionHandler := handler.NewOpinionHandler(opinionService)
 	router.POST("/opinions", opinionHandler.Create)
 	router.GET("/opinions", opinionHandler.List)
 	router.GET("/opinions/writer/:writer_id", opinionHandler.GetByWriter)
@@ -97,15 +38,23 @@ func setupOpinionHandlerRouter(svc service.OpinionService) *gin.Engine {
 	router.GET("/opinions/writer/:writer_id/work/:work_id", opinionHandler.GetByWriterAndWork)
 	router.PUT("/opinions/writer/:writer_id/work/:work_id", opinionHandler.Update)
 	router.DELETE("/opinions/writer/:writer_id/work/:work_id", opinionHandler.Delete)
-	return router
+	return router, opinionRepo, writerRepo, workRepo, cleanup
 }
 
 func TestOpinionHandler_Create(t *testing.T) {
 	t.Parallel()
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
-		svc := &mockOpinionService{}
-		router := setupOpinionHandlerRouter(svc)
+		router, _, writerRepo, workRepo, cleanup := setupOpinionHandlerRouter(t)
+		defer cleanup()
+
+		// Create test data
+		writer1 := domain.NewWriter(1, "Jane Austen", 1775, nil, nil)
+		writer2 := domain.NewWriter(2, "Charlotte Bronte", 1816, nil, nil)
+		require.NoError(t, writerRepo.Create(writer1))
+		require.NoError(t, writerRepo.Create(writer2))
+		work := domain.NewWork(1, "Pride and Prejudice", 1)
+		require.NoError(t, workRepo.Create(work))
 
 		reqBody := map[string]interface{}{
 			"writer_id": 2,
@@ -131,8 +80,16 @@ func TestOpinionHandler_Create(t *testing.T) {
 
 	t.Run("missing quote", func(t *testing.T) {
 		t.Parallel()
-		svc := &mockOpinionService{}
-		router := setupOpinionHandlerRouter(svc)
+		router, _, writerRepo, workRepo, cleanup := setupOpinionHandlerRouter(t)
+		defer cleanup()
+
+		// Create test data
+		writer1 := domain.NewWriter(1, "Jane Austen", 1775, nil, nil)
+		writer2 := domain.NewWriter(2, "Charlotte Bronte", 1816, nil, nil)
+		require.NoError(t, writerRepo.Create(writer1))
+		require.NoError(t, writerRepo.Create(writer2))
+		work := domain.NewWork(1, "Pride and Prejudice", 1)
+		require.NoError(t, workRepo.Create(work))
 
 		reqBody := map[string]interface{}{
 			"writer_id": 2,
@@ -150,14 +107,10 @@ func TestOpinionHandler_Create(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
 
-	t.Run("service error", func(t *testing.T) {
+	t.Run("writer not found", func(t *testing.T) {
 		t.Parallel()
-		svc := &mockOpinionService{
-			create: func(uint64, uint64, bool, string, string, *string, *int) (*domain.Opinion, error) {
-				return nil, assert.AnError
-			},
-		}
-		router := setupOpinionHandlerRouter(svc)
+		router, _, _, _, cleanup := setupOpinionHandlerRouter(t)
+		defer cleanup()
 
 		reqBody := map[string]interface{}{
 			"writer_id": 2,
@@ -177,18 +130,30 @@ func TestOpinionHandler_Create(t *testing.T) {
 	})
 }
 
+func setupTestOpinionData(
+	t *testing.T,
+	writerRepo repository.WriterRepository,
+	workRepo repository.WorkRepository,
+	opinionRepo repository.OpinionRepository,
+) {
+	writer1 := domain.NewWriter(1, "Jane Austen", 1775, nil, nil)
+	writer2 := domain.NewWriter(2, "Charlotte Bronte", 1816, nil, nil)
+	require.NoError(t, writerRepo.Create(writer1))
+	require.NoError(t, writerRepo.Create(writer2))
+	work := domain.NewWork(1, "Pride and Prejudice", 1)
+	require.NoError(t, workRepo.Create(work))
+	opinion := domain.NewOpinion(2, 1, true, "Quote 1", "Source 1", nil, nil)
+	require.NoError(t, opinionRepo.Create(opinion))
+}
+
 func TestOpinionHandler_GetByWriter(t *testing.T) {
 	t.Parallel()
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
-		svc := &mockOpinionService{
-			getByWriter: func(uint64) ([]*domain.Opinion, error) {
-				return []*domain.Opinion{
-					domain.NewOpinion(2, 1, true, "Quote 1", "Source 1", nil, nil),
-				}, nil
-			},
-		}
-		router := setupOpinionHandlerRouter(svc)
+		router, opinionRepo, writerRepo, workRepo, cleanup := setupOpinionHandlerRouter(t)
+		defer cleanup()
+
+		setupTestOpinionData(t, writerRepo, workRepo, opinionRepo)
 
 		req := httptest.NewRequest(http.MethodGet, "/opinions/writer/2", http.NoBody)
 		w := httptest.NewRecorder()
@@ -204,8 +169,16 @@ func TestOpinionHandler_GetByWriter(t *testing.T) {
 
 	t.Run("invalid writer_id", func(t *testing.T) {
 		t.Parallel()
-		svc := &mockOpinionService{}
-		router := setupOpinionHandlerRouter(svc)
+		router, _, writerRepo, workRepo, cleanup := setupOpinionHandlerRouter(t)
+		defer cleanup()
+
+		// Create test data
+		writer1 := domain.NewWriter(1, "Jane Austen", 1775, nil, nil)
+		writer2 := domain.NewWriter(2, "Charlotte Bronte", 1816, nil, nil)
+		require.NoError(t, writerRepo.Create(writer1))
+		require.NoError(t, writerRepo.Create(writer2))
+		work := domain.NewWork(1, "Pride and Prejudice", 1)
+		require.NoError(t, workRepo.Create(work))
 
 		req := httptest.NewRequest(http.MethodGet, "/opinions/writer/invalid", http.NoBody)
 		w := httptest.NewRecorder()
@@ -220,14 +193,10 @@ func TestOpinionHandler_GetByWork(t *testing.T) {
 	t.Parallel()
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
-		svc := &mockOpinionService{
-			getByWork: func(uint64) ([]*domain.Opinion, error) {
-				return []*domain.Opinion{
-					domain.NewOpinion(2, 1, true, "Quote 1", "Source 1", nil, nil),
-				}, nil
-			},
-		}
-		router := setupOpinionHandlerRouter(svc)
+		router, opinionRepo, writerRepo, workRepo, cleanup := setupOpinionHandlerRouter(t)
+		defer cleanup()
+
+		setupTestOpinionData(t, writerRepo, workRepo, opinionRepo)
 
 		req := httptest.NewRequest(http.MethodGet, "/opinions/work/1", http.NoBody)
 		w := httptest.NewRecorder()
@@ -246,12 +215,17 @@ func TestOpinionHandler_GetByWriterAndWork(t *testing.T) {
 	t.Parallel()
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
-		svc := &mockOpinionService{
-			getOpinion: func(writerID, workID uint64) (*domain.Opinion, error) {
-				return domain.NewOpinion(writerID, workID, true, "Quote", "Source", nil, nil), nil
-			},
-		}
-		router := setupOpinionHandlerRouter(svc)
+		router, opinionRepo, writerRepo, workRepo, cleanup := setupOpinionHandlerRouter(t)
+		defer cleanup()
+
+		writer1 := domain.NewWriter(1, "Jane Austen", 1775, nil, nil)
+		writer2 := domain.NewWriter(2, "Charlotte Bronte", 1816, nil, nil)
+		require.NoError(t, writerRepo.Create(writer1))
+		require.NoError(t, writerRepo.Create(writer2))
+		work := domain.NewWork(1, "Pride and Prejudice", 1)
+		require.NoError(t, workRepo.Create(work))
+		opinion := domain.NewOpinion(2, 1, true, "Quote", "Source", nil, nil)
+		require.NoError(t, opinionRepo.Create(opinion))
 
 		req := httptest.NewRequest(http.MethodGet, "/opinions/writer/2/work/1", http.NoBody)
 		w := httptest.NewRecorder()
@@ -268,12 +242,8 @@ func TestOpinionHandler_GetByWriterAndWork(t *testing.T) {
 
 	t.Run("not found", func(t *testing.T) {
 		t.Parallel()
-		svc := &mockOpinionService{
-			getOpinion: func(uint64, uint64) (*domain.Opinion, error) {
-				return nil, assert.AnError
-			},
-		}
-		router := setupOpinionHandlerRouter(svc)
+		router, _, _, _, cleanup := setupOpinionHandlerRouter(t)
+		defer cleanup()
 
 		req := httptest.NewRequest(http.MethodGet, "/opinions/writer/2/work/1", http.NoBody)
 		w := httptest.NewRecorder()
@@ -288,15 +258,23 @@ func TestOpinionHandler_List(t *testing.T) {
 	t.Parallel()
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
-		svc := &mockOpinionService{
-			list: func(int, int) ([]*domain.Opinion, error) {
-				return []*domain.Opinion{
-					domain.NewOpinion(2, 1, true, "Quote 1", "Source 1", nil, nil),
-					domain.NewOpinion(3, 2, false, "Quote 2", "Source 2", nil, nil),
-				}, nil
-			},
-		}
-		router := setupOpinionHandlerRouter(svc)
+		router, opinionRepo, writerRepo, workRepo, cleanup := setupOpinionHandlerRouter(t)
+		defer cleanup()
+
+		writer1 := domain.NewWriter(1, "Jane Austen", 1775, nil, nil)
+		writer2 := domain.NewWriter(2, "Charlotte Bronte", 1816, nil, nil)
+		writer3 := domain.NewWriter(3, "Charles Dickens", 1812, nil, nil)
+		require.NoError(t, writerRepo.Create(writer1))
+		require.NoError(t, writerRepo.Create(writer2))
+		require.NoError(t, writerRepo.Create(writer3))
+		work1 := domain.NewWork(1, "Pride and Prejudice", 1)
+		work2 := domain.NewWork(2, "Jane Eyre", 2)
+		require.NoError(t, workRepo.Create(work1))
+		require.NoError(t, workRepo.Create(work2))
+		opinion1 := domain.NewOpinion(2, 1, true, "Quote 1", "Source 1", nil, nil)
+		opinion2 := domain.NewOpinion(3, 2, false, "Quote 2", "Source 2", nil, nil)
+		require.NoError(t, opinionRepo.Create(opinion1))
+		require.NoError(t, opinionRepo.Create(opinion2))
 
 		req := httptest.NewRequest(http.MethodGet, "/opinions", http.NoBody)
 		w := httptest.NewRecorder()
@@ -315,12 +293,17 @@ func TestOpinionHandler_Update(t *testing.T) {
 	t.Parallel()
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
-		svc := &mockOpinionService{
-			update: func(uint64, uint64, bool, string, string, *string, *int) error {
-				return nil
-			},
-		}
-		router := setupOpinionHandlerRouter(svc)
+		router, opinionRepo, writerRepo, workRepo, cleanup := setupOpinionHandlerRouter(t)
+		defer cleanup()
+
+		writer1 := domain.NewWriter(1, "Jane Austen", 1775, nil, nil)
+		writer2 := domain.NewWriter(2, "Charlotte Bronte", 1816, nil, nil)
+		require.NoError(t, writerRepo.Create(writer1))
+		require.NoError(t, writerRepo.Create(writer2))
+		work := domain.NewWork(1, "Pride and Prejudice", 1)
+		require.NoError(t, workRepo.Create(work))
+		opinion := domain.NewOpinion(2, 1, true, "Quote", "Source", nil, nil)
+		require.NoError(t, opinionRepo.Create(opinion))
 
 		reqBody := map[string]interface{}{
 			"sentiment": true,
@@ -342,8 +325,16 @@ func TestOpinionHandler_Update(t *testing.T) {
 
 	t.Run("missing quote", func(t *testing.T) {
 		t.Parallel()
-		svc := &mockOpinionService{}
-		router := setupOpinionHandlerRouter(svc)
+		router, _, writerRepo, workRepo, cleanup := setupOpinionHandlerRouter(t)
+		defer cleanup()
+
+		// Create test data
+		writer1 := domain.NewWriter(1, "Jane Austen", 1775, nil, nil)
+		writer2 := domain.NewWriter(2, "Charlotte Bronte", 1816, nil, nil)
+		require.NoError(t, writerRepo.Create(writer1))
+		require.NoError(t, writerRepo.Create(writer2))
+		work := domain.NewWork(1, "Pride and Prejudice", 1)
+		require.NoError(t, workRepo.Create(work))
 
 		reqBody := map[string]interface{}{
 			"sentiment": true,
@@ -364,12 +355,17 @@ func TestOpinionHandler_Delete(t *testing.T) {
 	t.Parallel()
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
-		svc := &mockOpinionService{
-			delete: func(uint64, uint64) error {
-				return nil
-			},
-		}
-		router := setupOpinionHandlerRouter(svc)
+		router, opinionRepo, writerRepo, workRepo, cleanup := setupOpinionHandlerRouter(t)
+		defer cleanup()
+
+		writer1 := domain.NewWriter(1, "Jane Austen", 1775, nil, nil)
+		writer2 := domain.NewWriter(2, "Charlotte Bronte", 1816, nil, nil)
+		require.NoError(t, writerRepo.Create(writer1))
+		require.NoError(t, writerRepo.Create(writer2))
+		work := domain.NewWork(1, "Pride and Prejudice", 1)
+		require.NoError(t, workRepo.Create(work))
+		opinion := domain.NewOpinion(2, 1, true, "Quote", "Source", nil, nil)
+		require.NoError(t, opinionRepo.Create(opinion))
 
 		req := httptest.NewRequest(http.MethodDelete, "/opinions/writer/2/work/1", http.NoBody)
 		w := httptest.NewRecorder()
