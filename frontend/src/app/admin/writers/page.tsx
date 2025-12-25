@@ -1,6 +1,5 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
 import { type Column, DataTable } from "@/components/admin/DataTable";
 import { DeleteConfirmDialog } from "@/components/admin/DeleteConfirmDialog";
 import { Button } from "@/components/common/Button";
@@ -13,6 +12,7 @@ import {
   exportWritersToCSV,
   importWritersFromCSV,
 } from "@/utils/csvUtils";
+import React, { useEffect, useRef, useState } from "react";
 
 interface WriterFormData {
   name: string;
@@ -154,21 +154,46 @@ export default function WritersAdminPage(): React.JSX.Element {
   };
 
   const handleDeleteClick = (id: number | string): void => {
-    const writer = writers.find((w) => w.id === Number(id));
+    // Ensure ID is a valid number
+    const numericId = typeof id === "string" ? parseInt(id, 10) : id;
+    if (isNaN(numericId) || numericId <= 0) {
+      console.error("Invalid writer ID for deletion:", id);
+      return;
+    }
+
+    const writer = writers.find((w) => w.id === numericId);
     if (writer) {
       setWriterToDelete(writer);
       setDeleteConfirmOpen(true);
+    } else {
+      console.error("Writer not found for deletion:", id, "numericId:", numericId);
     }
   };
 
   const handleDeleteConfirm = async (): Promise<void> => {
     if (writerToDelete) {
+      // Clear any previous errors
+      clearError();
+
       await deleteWriter(writerToDelete.id);
-      setDeleteConfirmOpen(false);
-      setWriterToDelete(null);
-      void fetchWriters(1000, 0);
+      // The store will set error state if deletion fails
+      // We'll use useEffect to handle dialog closing on success
     }
   };
+
+  // Close dialog and refresh on successful deletion (when error clears after delete attempt)
+  useEffect(() => {
+    if (deleteConfirmOpen && writerToDelete && !isLoading && !error) {
+      // Check if the writer was actually deleted (not in the list anymore)
+      const stillExists = writers.some((w) => w.id === writerToDelete.id);
+      if (!stillExists) {
+        setDeleteConfirmOpen(false);
+        setWriterToDelete(null);
+        void fetchWriters(1000, 0);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deleteConfirmOpen, writerToDelete, isLoading, error, writers]);
 
   const handleExportCSV = (): void => {
     const csvContent = exportWritersToCSV(writers);
@@ -373,7 +398,7 @@ export default function WritersAdminPage(): React.JSX.Element {
         {showImportPreview && importPreview && (
           <div className="mb-4 bg-white p-4 rounded-lg shadow-sm border border-gray-200">
             <h3 className="text-lg font-semibold mb-2">Import Preview</h3>
-            <p className="text-sm text-gray-600 mb-2">
+            <p className="text-sm text-gray-600 mb-4">
               {importPreview.data.length} rows to import
               {importPreview.errors.length > 0 && (
                 <span className="text-red-600 ml-2">({importPreview.errors.length} errors)</span>
@@ -381,6 +406,7 @@ export default function WritersAdminPage(): React.JSX.Element {
             </p>
             {importPreview.errors.length > 0 && (
               <div className="mb-4 max-h-40 overflow-y-auto">
+                <p className="text-sm font-medium text-red-600 mb-2">Validation Errors:</p>
                 <ul className="list-disc list-inside text-sm text-red-600">
                   {importPreview.errors.map((error, index) => (
                     <li key={index}>
@@ -389,6 +415,50 @@ export default function WritersAdminPage(): React.JSX.Element {
                   ))}
                 </ul>
               </div>
+            )}
+            {importPreview.data.length > 0 && (
+              <div className="mb-4 max-h-60 overflow-y-auto border border-gray-200 rounded">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Name
+                      </th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Birth Year
+                      </th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Death Year
+                      </th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Bio
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {importPreview.data.slice(0, 20).map((writer, index) => (
+                      <tr key={index}>
+                        <td className="px-4 py-2 text-sm text-gray-900">{writer.name}</td>
+                        <td className="px-4 py-2 text-sm text-gray-900">{writer.birth_year}</td>
+                        <td className="px-4 py-2 text-sm text-gray-900">
+                          {writer.death_year ?? "—"}
+                        </td>
+                        <td className="px-4 py-2 text-sm text-gray-600">
+                          {writer.bio ? (writer.bio.length > 50 ? `${writer.bio.substring(0, 50)}...` : writer.bio) : "—"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {importPreview.data.length > 20 && (
+                  <p className="px-4 py-2 text-sm text-gray-500 bg-gray-50">
+                    ... and {importPreview.data.length - 20} more rows
+                  </p>
+                )}
+              </div>
+            )}
+            {importPreview.data.length === 0 && importPreview.errors.length === 0 && (
+              <p className="text-sm text-gray-500 mb-4">No valid data found in CSV file.</p>
             )}
             <div className="flex gap-3">
               <Button onClick={handleImportConfirm} disabled={!importPreview.isValid}>
@@ -448,11 +518,13 @@ export default function WritersAdminPage(): React.JSX.Element {
         onClose={() => {
           setDeleteConfirmOpen(false);
           setWriterToDelete(null);
+          clearError();
         }}
         onConfirm={handleDeleteConfirm}
         entityName="writer"
         entityDetails={writerToDelete ? `${writerToDelete.name} (ID: ${writerToDelete.id})` : ""}
         isLoading={isLoading}
+        error={error}
       />
     </div>
   );

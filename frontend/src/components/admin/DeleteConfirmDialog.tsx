@@ -8,6 +8,7 @@ interface DeleteConfirmDialogProps {
     entityName: string;
     entityDetails: string;
     isLoading?: boolean;
+    error?: string | null;
 }
 
 export const DeleteConfirmDialog: React.FC<DeleteConfirmDialogProps> = ({
@@ -17,6 +18,7 @@ export const DeleteConfirmDialog: React.FC<DeleteConfirmDialogProps> = ({
     entityName,
     entityDetails,
     isLoading = false,
+    error,
 }): React.JSX.Element | null => {
     if (!isOpen) {
         return null;
@@ -44,14 +46,22 @@ export const DeleteConfirmDialog: React.FC<DeleteConfirmDialogProps> = ({
             aria-labelledby="delete-dialog-title"
             aria-describedby="delete-dialog-description"
         >
-            <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
+            <div
+                className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6"
+                onClick={(e) => e.stopPropagation()}
+            >
                 <h2 id="delete-dialog-title" className="text-xl font-semibold text-gray-900 mb-4">
                     Confirm Delete
                 </h2>
                 <p id="delete-dialog-description" className="text-gray-600 mb-2">
                     Are you sure you want to delete this {entityName}?
                 </p>
-                <p className="text-sm text-gray-500 mb-6">{entityDetails}</p>
+                <p className="text-sm text-gray-500 mb-4">{entityDetails}</p>
+                {error && (
+                    <div className="mb-4 rounded-md bg-red-50 border border-red-200 p-3">
+                        <p className="text-sm text-red-800">{error}</p>
+                    </div>
+                )}
                 <div className="flex justify-end gap-3">
                     <Button variant="secondary" onClick={onClose} disabled={isLoading}>
                         Cancel

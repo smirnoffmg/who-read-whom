@@ -36,98 +36,190 @@ export const LiteraryGraph: React.FC<LiteraryGraphProps> = ({
   selectedWriter,
   selectedWork,
 }): React.JSX.Element => {
+  // eslint-disable-next-line no-console
+  console.log("LiteraryGraph render", { selectedWriter, selectedWork });
+  
   const [nodes, setNodes] = useState<GraphNode[]>([]);
   const [links, setLinks] = useState<GraphLink[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   // ForceGraph2D ref type is not properly exported, using any is necessary
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const graphRef = useRef<any>(null);
 
   const loadGraphData = useCallback(async (): Promise<void> => {
+    // eslint-disable-next-line no-console
+    console.log("loadGraphData called", { selectedWriter, selectedWork });
     setIsLoading(true);
     setError(null);
 
     try {
-      const [allWriters, allWorks, allOpinions] = await Promise.all([
-        WriterService.list(1000, 0),
-        WorkService.list(1000, 0),
-        OpinionService.list(1000, 0),
-      ]);
+      // If nothing is selected, show empty graph
+      if (!selectedWriter && !selectedWork) {
+        // eslint-disable-next-line no-console
+        console.log("Nothing selected, clearing graph");
+        setNodes([]);
+        setLinks([]);
+        setIsLoading(false);
+        return;
+      }
 
       const nodeMap = new Map<string, GraphNode>();
       const linkList: GraphLink[] = [];
 
-      // Add all writers as nodes
-      allWriters.forEach((writer) => {
-        const nodeId = `writer-${writer.id}`;
-        nodeMap.set(nodeId, {
-          id: nodeId,
-          name: writer.name,
-          type: "writer",
-          writerId: writer.id,
-        });
-      });
-
-      // Add all works as nodes
-      allWorks.forEach((work) => {
-        const nodeId = `work-${work.id}`;
-        nodeMap.set(nodeId, {
-          id: nodeId,
-          name: work.title,
-          type: "work",
-          workId: work.id,
-        });
-      });
-
-      // Add links from opinions
-      allOpinions.forEach((opinion) => {
-        const writerNodeId = `writer-${opinion.writer_id}`;
-        const workNodeId = `work-${opinion.work_id}`;
-
-        if (nodeMap.has(writerNodeId) && nodeMap.has(workNodeId)) {
-          linkList.push({
-            source: writerNodeId,
-            target: workNodeId,
-            sentiment: opinion.sentiment,
-            quote: opinion.quote,
-            sourceRef: opinion.source,
-          });
-        }
-      });
-
-      // Filter based on selection
-      let filteredNodes = Array.from(nodeMap.values());
-      let filteredLinks = linkList;
-
       if (selectedWriter) {
+        // Always add the selected writer node
         const writerNodeId = `writer-${selectedWriter.id}`;
-        filteredLinks = filteredLinks.filter(
-          (link) => link.source === writerNodeId || link.target === writerNodeId
-        );
-        // Add connected nodes
-        const connectedNodeIds = new Set<string>([writerNodeId]);
-        filteredLinks.forEach((link) => {
-          connectedNodeIds.add(link.source);
-          connectedNodeIds.add(link.target);
+        nodeMap.set(writerNodeId, {
+          id: writerNodeId,
+          name: selectedWriter.name,
+          type: "writer",
+          writerId: selectedWriter.id,
         });
-        filteredNodes = filteredNodes.filter((node) => connectedNodeIds.has(node.id));
+
+        try {
+          // Get opinions by this writer
+          const opinions = await OpinionService.getByWriter(selectedWriter.id);
+          
+          if (opinions.length > 0) {
+            // Get unique work IDs from opinions
+            const workIds = [...new Set(opinions.map((o) => o.work_id))];
+            
+            // Load only the works that this writer has opinions about
+            const workResults = await Promise.allSettled(
+              workIds.map((workId) => WorkService.getById(workId))
+            );
+
+            // Add work nodes (filter out failed requests)
+            workResults.forEach((result) => {
+              if (result.status === "fulfilled" && result.value) {
+                const work = result.value;
+                const workNodeId = `work-${work.id}`;
+                nodeMap.set(workNodeId, {
+                  id: workNodeId,
+                  name: work.title,
+                  type: "work",
+                  workId: work.id,
+                });
+              }
+            });
+
+            // Add links from opinions
+            opinions.forEach((opinion) => {
+              const workNodeId = `work-${opinion.work_id}`;
+              if (nodeMap.has(workNodeId)) {
+                linkList.push({
+                  source: writerNodeId,
+                  target: workNodeId,
+                  sentiment: opinion.sentiment,
+                  quote: opinion.quote,
+                  sourceRef: opinion.source,
+                });
+              }
+            });
+          }
+        } catch (err) {
+          console.error("Error loading opinions for writer:", err);
+          // Still show the writer node even if opinions fail to load
+        }
       } else if (selectedWork) {
+        // Validate work object
+        if (!selectedWork.id || !selectedWork.title) {
+          // eslint-disable-next-line no-console
+          console.error("Invalid work object:", selectedWork);
+          setError("Invalid work data: missing id or title");
+          setIsLoading(false);
+          return;
+        }
+
+        // Always add the selected work node
         const workNodeId = `work-${selectedWork.id}`;
-        filteredLinks = filteredLinks.filter(
-          (link) => link.source === workNodeId || link.target === workNodeId
-        );
-        // Add connected nodes
-        const connectedNodeIds = new Set<string>([workNodeId]);
-        filteredLinks.forEach((link) => {
-          connectedNodeIds.add(link.source);
-          connectedNodeIds.add(link.target);
+        nodeMap.set(workNodeId, {
+          id: workNodeId,
+          name: selectedWork.title,
+          type: "work",
+          workId: selectedWork.id,
         });
-        filteredNodes = filteredNodes.filter((node) => connectedNodeIds.has(node.id));
+
+        // eslint-disable-next-line no-console
+        console.log("Selected work:", selectedWork);
+
+        try {
+          // Get opinions about this work
+          const opinions = await OpinionService.getByWork(selectedWork.id);
+          
+          // eslint-disable-next-line no-console
+          console.log(`Found ${opinions.length} opinions for work ${selectedWork.id}`);
+          
+          if (opinions.length > 0) {
+            // Get unique writer IDs from opinions
+            const writerIds = [...new Set(opinions.map((o) => o.writer_id))];
+            
+            // eslint-disable-next-line no-console
+            console.log(`Loading ${writerIds.length} writers for work ${selectedWork.id}`);
+            
+            // Load only the writers who have opinions about this work
+            const writerResults = await Promise.allSettled(
+              writerIds.map((writerId) => WriterService.getById(writerId))
+            );
+
+            // Add writer nodes (filter out failed requests)
+            let writersLoaded = 0;
+            writerResults.forEach((result) => {
+              if (result.status === "fulfilled" && result.value) {
+                const writer = result.value;
+                const writerNodeId = `writer-${writer.id}`;
+                nodeMap.set(writerNodeId, {
+                  id: writerNodeId,
+                  name: writer.name,
+                  type: "writer",
+                  writerId: writer.id,
+                });
+                writersLoaded++;
+              } else if (result.status === "rejected") {
+                // eslint-disable-next-line no-console
+                console.error("Failed to load writer:", result.reason);
+              }
+            });
+
+            // eslint-disable-next-line no-console
+            console.log(`Loaded ${writersLoaded} writers successfully`);
+
+            // Add links from opinions
+            opinions.forEach((opinion) => {
+              const writerNodeId = `writer-${opinion.writer_id}`;
+              if (nodeMap.has(writerNodeId)) {
+                linkList.push({
+                  source: writerNodeId,
+                  target: workNodeId,
+                  sentiment: opinion.sentiment,
+                  quote: opinion.quote,
+                  sourceRef: opinion.source,
+                });
+              }
+            });
+          } else {
+            // eslint-disable-next-line no-console
+            console.log(`No opinions found for work ${selectedWork.id}, showing work node only`);
+          }
+        } catch (err) {
+          // eslint-disable-next-line no-console
+          console.error("Error loading opinions for work:", err);
+          // Still show the work node even if opinions fail to load
+        }
       }
 
-      setNodes(filteredNodes);
-      setLinks(filteredLinks);
+      const finalNodes = Array.from(nodeMap.values());
+      setNodes(finalNodes);
+      setLinks(linkList);
+      
+      // eslint-disable-next-line no-console
+      console.log("Graph data loaded:", {
+        nodes: finalNodes.length,
+        links: linkList.length,
+        selectedWriter: selectedWriter?.name,
+        selectedWork: selectedWork?.title,
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load graph data");
       console.error("Error loading graph data:", err);
@@ -136,9 +228,20 @@ export const LiteraryGraph: React.FC<LiteraryGraphProps> = ({
     }
   }, [selectedWriter, selectedWork]);
 
+  // Watch for prop changes
   useEffect(() => {
+    // eslint-disable-next-line no-console
+    console.log("Props changed:", {
+      selectedWriter: selectedWriter ? `${selectedWriter.name} (${selectedWriter.id})` : null,
+      selectedWork: selectedWork ? `${selectedWork.title} (${selectedWork.id})` : null,
+    });
+  }, [selectedWriter, selectedWork]);
+
+  useEffect(() => {
+    // eslint-disable-next-line no-console
+    console.log("useEffect triggered", { selectedWriter, selectedWork });
     void loadGraphData();
-  }, [loadGraphData]);
+  }, [loadGraphData, selectedWriter, selectedWork]);
 
   if (isLoading) {
     return (
@@ -168,10 +271,31 @@ export const LiteraryGraph: React.FC<LiteraryGraphProps> = ({
     );
   }
 
+  // Show empty state only if nothing is selected
+  // If something is selected but has no connections, still show the node
   if (nodes.length === 0) {
+    if (!selectedWriter && !selectedWork) {
+      return (
+        <div className="flex h-full items-center justify-center">
+          <p className="text-gray-600">
+            Select a writer or work from the search bar to view the graph.
+          </p>
+        </div>
+      );
+    }
+    // If something is selected but no nodes were loaded, show error message
     return (
       <div className="flex h-full items-center justify-center">
-        <p className="text-gray-600">No data to display. Select a writer or work to explore.</p>
+        <div className="text-center">
+          <p className="text-gray-600">
+            {selectedWork
+              ? `No data found for "${selectedWork.title}". The work may not have any opinions yet.`
+              : `No data found for "${selectedWriter?.name}". The writer may not have any opinions yet.`}
+          </p>
+          {error && (
+            <p className="mt-2 text-sm text-red-600">Error: {error}</p>
+          )}
+        </div>
       </div>
     );
   }
@@ -203,8 +327,16 @@ export const LiteraryGraph: React.FC<LiteraryGraphProps> = ({
     alert(`Opinion: ${linkData.quote}\n\nSource: ${linkData.sourceRef}`);
   };
 
+  // Create a key to force re-render when selection changes
+  const graphKey = selectedWriter
+    ? `writer-${selectedWriter.id}`
+    : selectedWork
+      ? `work-${selectedWork.id}`
+      : "empty";
+
   return (
     <ForceGraph2D
+      key={graphKey}
       ref={graphRef}
       graphData={{ nodes, links }}
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -225,8 +357,9 @@ export const LiteraryGraph: React.FC<LiteraryGraphProps> = ({
       onLinkClick={handleLinkClick as any}
       cooldownTicks={100}
       onEngineStop={() => {
-        if (graphRef.current) {
-          graphRef.current.zoomToFit(400);
+        if (graphRef.current && nodes.length > 0) {
+          // Center and zoom to fit all nodes
+          graphRef.current.zoomToFit(400, 20);
         }
       }}
     />

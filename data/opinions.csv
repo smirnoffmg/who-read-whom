@@ -1,0 +1,27 @@
+writer_id,work_id,sentiment,quote,source,page,statement_year
+1,2,true,"Ulysses is a masterpiece of modern literature, a work of extraordinary complexity and beauty.","The Common Reader",45,1925
+2,1,true,"Mrs. Dalloway is a remarkable achievement in stream of consciousness technique.","Personal correspondence",,1925
+3,4,true,"Hemingway's The Sun Also Rises captures the disillusionment of the Lost Generation with remarkable precision.","Literary Review",12,1926
+4,3,true,"The Great Gatsby is a perfect novel, beautifully written and deeply moving.","Interview",,1925
+5,2,true,"Joyce's Ulysses represents the pinnacle of modernist literature.","Essays",78,1923
+6,1,true,"Virginia Woolf's Mrs. Dalloway is a work of profound psychological insight.","Literary Criticism",156,1925
+7,5,true,"The Waste Land is a landmark of modernist poetry, capturing the fragmentation of post-war Europe.","Literary Essays",23,1922
+8,7,true,"Kafka's The Metamorphosis is a brilliant exploration of alienation and existential dread.","Review",34,1946
+9,8,false,"While 1984 is powerful, I find its vision of totalitarianism too simplistic compared to the subtle mechanisms of control in my own work.","Brave New World Revisited",89,1958
+10,1,true,"Ulysses is the book that all of us of the Joyce generation tried to write.","Interview",,1956
+1,3,true,"Fitzgerald's The Great Gatsby is a beautifully crafted novel about the American Dream.","Diary",,1925
+2,6,true,"Proust's masterpiece is a profound exploration of memory and time.","Essays",112,1922
+3,5,true,"The Waste Land is the most important poem of the 20th century.","Literary Review",56,1922
+4,1,true,"Mrs. Dalloway is a work of genius, showing the inner lives of characters with unprecedented depth.","Correspondence",,1925
+5,7,true,"Kafka's work represents the anxiety of modern existence with unparalleled clarity.","Literary Criticism",67,1940
+6,2,true,"Ulysses is a work of extraordinary ambition and achievement.","Essays",234,1922
+7,8,true,"1984 is a powerful warning about the dangers of totalitarianism.","Review",45,1949
+8,9,false,"Huxley's vision of a controlled society is interesting but lacks the brutal honesty of my own work.","Review",12,1932
+9,10,true,"Faulkner's The Sound and the Fury is a masterpiece of narrative innovation.","Literary Review",78,1929
+10,1,true,"Woolf's stream of consciousness technique in Mrs. Dalloway is revolutionary.","Interview",,1925
+1,5,true,"The Waste Land captures the fragmentation of modern consciousness with remarkable precision.","The Common Reader",89,1922
+2,10,true,"Faulkner's experimental narrative techniques in The Sound and the Fury are groundbreaking.","Essays",145,1929
+3,8,true,"1984 is a chilling vision of totalitarian control that remains relevant today.","Review",34,1949
+4,6,true,"Proust's exploration of memory and time is unparalleled in literature.","Interview",,1930
+5,9,true,"Brave New World presents a compelling vision of a dystopian future.","Literary Criticism",56,1932
+

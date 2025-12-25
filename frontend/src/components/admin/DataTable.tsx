@@ -206,14 +206,20 @@ export const DataTable = <T,>({
                                             ) : (
                                                 <div className="flex gap-2">
                                                     <button
-                                                        onClick={() => onEdit(itemId)}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            onEdit(itemId);
+                                                        }}
                                                         disabled={isLoading || editingId !== null}
                                                         className="text-blue-600 hover:text-blue-900 disabled:text-gray-400 disabled:cursor-not-allowed text-sm font-medium"
                                                     >
                                                         Edit
                                                     </button>
                                                     <button
-                                                        onClick={() => onDelete(itemId)}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            onDelete(itemId);
+                                                        }}
                                                         disabled={isLoading || editingId !== null}
                                                         className="text-red-600 hover:text-red-900 disabled:text-gray-400 disabled:cursor-not-allowed text-sm font-medium"
                                                     >

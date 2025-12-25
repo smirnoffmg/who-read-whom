@@ -250,17 +250,44 @@ export default function OpinionsAdminPage(): React.JSX.Element {
     if (opinion) {
       setOpinionToDelete(opinion);
       setDeleteConfirmOpen(true);
+    } else {
+      console.error("Opinion not found for deletion:", id);
     }
   };
 
   const handleDeleteConfirm = async (): Promise<void> => {
     if (opinionToDelete) {
+      // Clear any previous errors
+      clearError();
+      
       await deleteOpinion(opinionToDelete.writer_id, opinionToDelete.work_id);
-      setDeleteConfirmOpen(false);
-      setOpinionToDelete(null);
-      void fetchOpinions(1000, 0);
+      // The store will set error state if deletion fails
+      // We'll use useEffect to handle dialog closing on success
     }
   };
+
+  // Close dialog and refresh on successful deletion
+  useEffect(() => {
+    if (
+      deleteConfirmOpen &&
+      opinionToDelete &&
+      !isLoading &&
+      !error
+    ) {
+      // Check if the opinion was actually deleted (not in the list anymore)
+      const stillExists = opinions.some(
+        (o) =>
+          o.writer_id === opinionToDelete.writer_id &&
+          o.work_id === opinionToDelete.work_id
+      );
+      if (!stillExists) {
+        setDeleteConfirmOpen(false);
+        setOpinionToDelete(null);
+        void fetchOpinions(1000, 0);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deleteConfirmOpen, opinionToDelete, isLoading, error, opinions]);
 
   const handleExportCSV = (): void => {
     const csvContent = exportOpinionsToCSV(opinions);
@@ -553,7 +580,7 @@ export default function OpinionsAdminPage(): React.JSX.Element {
         {showImportPreview && importPreview && (
           <div className="mb-4 bg-white p-4 rounded-lg shadow-sm border border-gray-200">
             <h3 className="text-lg font-semibold mb-2">Import Preview</h3>
-            <p className="text-sm text-gray-600 mb-2">
+            <p className="text-sm text-gray-600 mb-4">
               {importPreview.data.length} rows to import
               {importPreview.errors.length > 0 && (
                 <span className="text-red-600 ml-2">({importPreview.errors.length} errors)</span>
@@ -561,6 +588,7 @@ export default function OpinionsAdminPage(): React.JSX.Element {
             </p>
             {importPreview.errors.length > 0 && (
               <div className="mb-4 max-h-40 overflow-y-auto">
+                <p className="text-sm font-medium text-red-600 mb-2">Validation Errors:</p>
                 <ul className="list-disc list-inside text-sm text-red-600">
                   {importPreview.errors.map((error, index) => (
                     <li key={index}>
@@ -569,6 +597,64 @@ export default function OpinionsAdminPage(): React.JSX.Element {
                   ))}
                 </ul>
               </div>
+            )}
+            {importPreview.data.length > 0 && (
+              <div className="mb-4 max-h-60 overflow-y-auto border border-gray-200 rounded">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Writer ID
+                      </th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Work ID
+                      </th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Sentiment
+                      </th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Quote
+                      </th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Source
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {importPreview.data.slice(0, 20).map((opinion, index) => (
+                      <tr key={index}>
+                        <td className="px-4 py-2 text-sm text-gray-900">{opinion.writer_id}</td>
+                        <td className="px-4 py-2 text-sm text-gray-900">{opinion.work_id}</td>
+                        <td className="px-4 py-2 text-sm text-gray-900">
+                          {opinion.sentiment ? (
+                            <span className="text-green-600">Positive</span>
+                          ) : (
+                            <span className="text-red-600">Negative</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-2 text-sm text-gray-600">
+                          {opinion.quote.length > 30
+                            ? `${opinion.quote.substring(0, 30)}...`
+                            : opinion.quote}
+                        </td>
+                        <td className="px-4 py-2 text-sm text-gray-600">
+                          {opinion.source.length > 20
+                            ? `${opinion.source.substring(0, 20)}...`
+                            : opinion.source}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {importPreview.data.length > 20 && (
+                  <p className="px-4 py-2 text-sm text-gray-500 bg-gray-50">
+                    ... and {importPreview.data.length - 20} more rows
+                  </p>
+                )}
+              </div>
+            )}
+            {importPreview.data.length === 0 && importPreview.errors.length === 0 && (
+              <p className="text-sm text-gray-500 mb-4">No valid data found in CSV file.</p>
             )}
             <div className="flex gap-3">
               <Button onClick={handleImportConfirm} disabled={!importPreview.isValid}>
@@ -638,6 +724,7 @@ export default function OpinionsAdminPage(): React.JSX.Element {
         onClose={() => {
           setDeleteConfirmOpen(false);
           setOpinionToDelete(null);
+          clearError();
         }}
         onConfirm={handleDeleteConfirm}
         entityName="opinion"
@@ -647,6 +734,7 @@ export default function OpinionsAdminPage(): React.JSX.Element {
             : ""
         }
         isLoading={isLoading}
+        error={error}
       />
     </div>
   );

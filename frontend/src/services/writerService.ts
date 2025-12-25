@@ -22,7 +22,11 @@ export class WriterService {
   }
 
   static async getById(id: number): Promise<Writer> {
-    const response = await fetch(`${this.BASE_URL}/writers/${id}`, {
+    const numericId = Number(id);
+    if (isNaN(numericId) || numericId <= 0) {
+      throw new Error(`Invalid writer ID: ${id}`);
+    }
+    const response = await fetch(`${this.BASE_URL}/writers/${numericId}`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -74,7 +78,11 @@ export class WriterService {
   }
 
   static async update(id: number, params: UpdateWriterRequest): Promise<void> {
-    const response = await fetch(`${this.BASE_URL}/writers/${id}`, {
+    const numericId = Number(id);
+    if (isNaN(numericId) || numericId <= 0) {
+      throw new Error(`Invalid writer ID: ${id}`);
+    }
+    const response = await fetch(`${this.BASE_URL}/writers/${numericId}`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -89,7 +97,11 @@ export class WriterService {
   }
 
   static async delete(id: number): Promise<void> {
-    const response = await fetch(`${this.BASE_URL}/writers/${id}`, {
+    const numericId = Number(id);
+    if (isNaN(numericId) || numericId <= 0) {
+      throw new Error(`Invalid writer ID: ${id}`);
+    }
+    const response = await fetch(`${this.BASE_URL}/writers/${numericId}`, {
       method: "DELETE",
       headers: {
         "Content-Type": "application/json",

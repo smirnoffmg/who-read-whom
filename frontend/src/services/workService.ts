@@ -22,7 +22,11 @@ export class WorkService {
   }
 
   static async getById(id: number): Promise<Work> {
-    const response = await fetch(`${this.BASE_URL}/works/${id}`, {
+    const numericId = Number(id);
+    if (isNaN(numericId) || numericId <= 0) {
+      throw new Error(`Invalid work ID: ${id}`);
+    }
+    const response = await fetch(`${this.BASE_URL}/works/${numericId}`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -90,7 +94,11 @@ export class WorkService {
   }
 
   static async update(id: number, params: UpdateWorkRequest): Promise<void> {
-    const response = await fetch(`${this.BASE_URL}/works/${id}`, {
+    const numericId = Number(id);
+    if (isNaN(numericId) || numericId <= 0) {
+      throw new Error(`Invalid work ID: ${id}`);
+    }
+    const response = await fetch(`${this.BASE_URL}/works/${numericId}`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -105,7 +113,11 @@ export class WorkService {
   }
 
   static async delete(id: number): Promise<void> {
-    const response = await fetch(`${this.BASE_URL}/works/${id}`, {
+    const numericId = Number(id);
+    if (isNaN(numericId) || numericId <= 0) {
+      throw new Error(`Invalid work ID: ${id}`);
+    }
+    const response = await fetch(`${this.BASE_URL}/works/${numericId}`, {
       method: "DELETE",
       headers: {
         "Content-Type": "application/json",
