@@ -66,13 +66,9 @@ export const SearchBar: React.FC<SearchBarProps> = ({
 
   const handleSelect = (item: Writer | Work): void => {
     if (searchType === "writer") {
-      // eslint-disable-next-line no-console
-      console.log("Selecting writer:", item);
       onWriterSelect(item as Writer);
       onWorkSelect(null);
     } else {
-      // eslint-disable-next-line no-console
-      console.log("Selecting work:", item);
       onWorkSelect(item as Work);
       onWriterSelect(null);
     }

@@ -10,25 +10,14 @@ export default function Home(): React.JSX.Element {
   const [selectedWriter, setSelectedWriter] = useState<Writer | null>(null);
   const [selectedWork, setSelectedWork] = useState<Work | null>(null);
 
-  // Log state changes
-  React.useEffect(() => {
-    // eslint-disable-next-line no-console
-    console.log("Home component state:", {
-      selectedWriter: selectedWriter ? `${selectedWriter.name} (${selectedWriter.id})` : null,
-      selectedWork: selectedWork ? `${selectedWork.title} (${selectedWork.id})` : null,
-    });
-  }, [selectedWriter, selectedWork]);
-
   const handleWriterSelect = (writer: Writer | null): void => {
     setSelectedWriter(writer);
-    setSelectedWork(null);
+    // SearchBar already handles clearing selectedWork
   };
 
   const handleWorkSelect = (work: Work | null): void => {
-    // eslint-disable-next-line no-console
-    console.log("Main page: work selected", work);
     setSelectedWork(work);
-    setSelectedWriter(null);
+    // SearchBar already handles clearing selectedWriter
   };
 
   return (

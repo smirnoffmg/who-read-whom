@@ -32,13 +32,79 @@ interface GraphLink {
   sourceRef: string;
 }
 
+// Define canvas drawing functions outside component to avoid re-render issues
+const nodeCanvasObject = (node: unknown, ctx: CanvasRenderingContext2D, globalScale: number): void => {
+  const graphNode = node as GraphNode & {
+    x: number;
+    y: number;
+  };
+  const nodeSize = graphNode.type === "writer" ? 8 : 6;
+  const nodeColor = graphNode.type === "writer" ? "#3b82f6" : "#10b981";
+
+  // Draw node circle
+  ctx.beginPath();
+  ctx.arc(graphNode.x, graphNode.y, nodeSize, 0, 2 * Math.PI);
+  ctx.fillStyle = nodeColor;
+  ctx.fill();
+
+  // Draw text label below the node
+  const label = graphNode.name;
+  const fontSize = Math.max(10, 12 / globalScale);
+  ctx.font = `${fontSize}px Sans-Serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "top";
+  const textWidth = ctx.measureText(label).width;
+  const textHeight = fontSize;
+  const padding = fontSize * 0.3;
+  const bckgDimensions: [number, number] = [
+    textWidth + padding * 2,
+    textHeight + padding * 2,
+  ];
+
+  // Draw background rectangle for text
+  ctx.fillStyle = "rgba(255, 255, 255, 0.95)";
+  ctx.fillRect(
+    graphNode.x - bckgDimensions[0] / 2,
+    graphNode.y + nodeSize + 2,
+    ...bckgDimensions
+  );
+
+  // Draw text
+  ctx.fillStyle = "#1f2937";
+  ctx.fillText(label, graphNode.x, graphNode.y + nodeSize + 2 + padding);
+};
+
+const nodePointerAreaPaint = (node: unknown, color: string, ctx: CanvasRenderingContext2D): void => {
+  const graphNode = node as GraphNode & {
+    x: number;
+    y: number;
+  };
+  const nodeSize = graphNode.type === "writer" ? 8 : 6;
+  const label = graphNode.name;
+  const fontSize = 12; // Use base font size for calculation
+  ctx.font = `${fontSize}px Sans-Serif`;
+  const textWidth = ctx.measureText(label).width;
+  const padding = fontSize * 0.3;
+  const textHeight = fontSize;
+  const bckgWidth = textWidth + padding * 2;
+  const bckgHeight = textHeight + padding * 2;
+  const totalWidth = Math.max(nodeSize * 2, bckgWidth);
+  const totalHeight = nodeSize + 2 + bckgHeight;
+
+  // Draw hover area covering circle and text
+  ctx.fillStyle = color;
+  ctx.fillRect(
+    graphNode.x - totalWidth / 2,
+    graphNode.y - nodeSize,
+    totalWidth,
+    totalHeight
+  );
+};
+
 export const LiteraryGraph: React.FC<LiteraryGraphProps> = ({
   selectedWriter,
   selectedWork,
 }): React.JSX.Element => {
-  // eslint-disable-next-line no-console
-  console.log("LiteraryGraph render", { selectedWriter, selectedWork });
-  
   const [nodes, setNodes] = useState<GraphNode[]>([]);
   const [links, setLinks] = useState<GraphLink[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -48,16 +114,12 @@ export const LiteraryGraph: React.FC<LiteraryGraphProps> = ({
   const graphRef = useRef<any>(null);
 
   const loadGraphData = useCallback(async (): Promise<void> => {
-    // eslint-disable-next-line no-console
-    console.log("loadGraphData called", { selectedWriter, selectedWork });
     setIsLoading(true);
     setError(null);
 
     try {
       // If nothing is selected, show empty graph
       if (!selectedWriter && !selectedWork) {
-        // eslint-disable-next-line no-console
-        console.log("Nothing selected, clearing graph");
         setNodes([]);
         setLinks([]);
         setIsLoading(false);
@@ -212,14 +274,6 @@ export const LiteraryGraph: React.FC<LiteraryGraphProps> = ({
       const finalNodes = Array.from(nodeMap.values());
       setNodes(finalNodes);
       setLinks(linkList);
-      
-      // eslint-disable-next-line no-console
-      console.log("Graph data loaded:", {
-        nodes: finalNodes.length,
-        links: linkList.length,
-        selectedWriter: selectedWriter?.name,
-        selectedWork: selectedWork?.title,
-      });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load graph data");
       console.error("Error loading graph data:", err);
@@ -228,18 +282,7 @@ export const LiteraryGraph: React.FC<LiteraryGraphProps> = ({
     }
   }, [selectedWriter, selectedWork]);
 
-  // Watch for prop changes
   useEffect(() => {
-    // eslint-disable-next-line no-console
-    console.log("Props changed:", {
-      selectedWriter: selectedWriter ? `${selectedWriter.name} (${selectedWriter.id})` : null,
-      selectedWork: selectedWork ? `${selectedWork.title} (${selectedWork.id})` : null,
-    });
-  }, [selectedWriter, selectedWork]);
-
-  useEffect(() => {
-    // eslint-disable-next-line no-console
-    console.log("useEffect triggered", { selectedWriter, selectedWork });
     void loadGraphData();
   }, [loadGraphData, selectedWriter, selectedWork]);
 
@@ -327,6 +370,8 @@ export const LiteraryGraph: React.FC<LiteraryGraphProps> = ({
     alert(`Opinion: ${linkData.quote}\n\nSource: ${linkData.sourceRef}`);
   };
 
+  // Functions are defined outside component, so they're stable references
+
   // Create a key to force re-render when selection changes
   const graphKey = selectedWriter
     ? `writer-${selectedWriter.id}`
@@ -350,6 +395,10 @@ export const LiteraryGraph: React.FC<LiteraryGraphProps> = ({
       linkDirectionalArrowRelPos={1}
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       nodeVal={getNodeVal as any}
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      nodeCanvasObject={nodeCanvasObject as any}
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      nodePointerAreaPaint={nodePointerAreaPaint as any}
       onNodeClick={() => {
         // Could add node click handler here
       }}
