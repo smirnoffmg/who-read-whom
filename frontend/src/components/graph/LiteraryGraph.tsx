@@ -41,37 +41,64 @@ const nodeCanvasObject = (node: unknown, ctx: CanvasRenderingContext2D, globalSc
   const nodeSize = graphNode.type === "writer" ? 8 : 6;
   const nodeColor = graphNode.type === "writer" ? "#3b82f6" : "#10b981";
 
+  // Save canvas state
+  ctx.save();
+
   // Draw node circle
   ctx.beginPath();
   ctx.arc(graphNode.x, graphNode.y, nodeSize, 0, 2 * Math.PI);
   ctx.fillStyle = nodeColor;
   ctx.fill();
+  ctx.closePath();
 
   // Draw text label below the node
   const label = graphNode.name;
   const fontSize = Math.max(10, 12 / globalScale);
   ctx.font = `${fontSize}px Sans-Serif`;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "top";
   const textWidth = ctx.measureText(label).width;
   const textHeight = fontSize;
   const padding = fontSize * 0.3;
-  const bckgDimensions: [number, number] = [
-    textWidth + padding * 2,
-    textHeight + padding * 2,
-  ];
+  const bckgWidth = textWidth + padding * 2;
+  const bckgHeight = textHeight + padding * 2;
+  
+  // Get canvas dimensions to prevent clipping
+  const canvasWidth = ctx.canvas.width;
+  const canvasHeight = ctx.canvas.height;
+  
+  // Calculate label position, adjusting to stay within canvas bounds
+  let labelX = graphNode.x;
+  let labelY = graphNode.y + nodeSize + 2;
+  
+  // Adjust X position if label would be clipped on left or right
+  const halfWidth = bckgWidth / 2;
+  if (labelX - halfWidth < 0) {
+    labelX = halfWidth;
+  } else if (labelX + halfWidth > canvasWidth) {
+    labelX = canvasWidth - halfWidth;
+  }
+  
+  // Adjust Y position if label would be clipped at bottom
+  if (labelY + bckgHeight > canvasHeight) {
+    labelY = graphNode.y - nodeSize - 2 - bckgHeight; // Place above node instead
+  }
 
   // Draw background rectangle for text
   ctx.fillStyle = "rgba(255, 255, 255, 0.95)";
   ctx.fillRect(
-    graphNode.x - bckgDimensions[0] / 2,
-    graphNode.y + nodeSize + 2,
-    ...bckgDimensions
+    labelX - bckgWidth / 2,
+    labelY,
+    bckgWidth,
+    bckgHeight
   );
 
   // Draw text
+  ctx.textAlign = "center";
+  ctx.textBaseline = "top";
   ctx.fillStyle = "#1f2937";
-  ctx.fillText(label, graphNode.x, graphNode.y + nodeSize + 2 + padding);
+  ctx.fillText(label, labelX, labelY + padding);
+
+  // Restore canvas state
+  ctx.restore();
 };
 
 const nodePointerAreaPaint = (node: unknown, color: string, ctx: CanvasRenderingContext2D): void => {
@@ -79,6 +106,10 @@ const nodePointerAreaPaint = (node: unknown, color: string, ctx: CanvasRendering
     x: number;
     y: number;
   };
+  
+  // Save canvas state
+  ctx.save();
+  
   const nodeSize = graphNode.type === "writer" ? 8 : 6;
   const label = graphNode.name;
   const fontSize = 12; // Use base font size for calculation
@@ -99,6 +130,9 @@ const nodePointerAreaPaint = (node: unknown, color: string, ctx: CanvasRendering
     totalWidth,
     totalHeight
   );
+  
+  // Restore canvas state
+  ctx.restore();
 };
 
 export const LiteraryGraph: React.FC<LiteraryGraphProps> = ({
@@ -380,10 +414,17 @@ export const LiteraryGraph: React.FC<LiteraryGraphProps> = ({
       : "empty";
 
   return (
-    <ForceGraph2D
-      key={graphKey}
-      ref={graphRef}
-      graphData={{ nodes, links }}
+    <div
+      onWheel={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+      }}
+      style={{ width: "100%", height: "100%" }}
+    >
+      <ForceGraph2D
+        key={graphKey}
+        ref={graphRef}
+        graphData={{ nodes, links }}
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       nodeLabel={getNodeLabel as any}
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -399,6 +440,16 @@ export const LiteraryGraph: React.FC<LiteraryGraphProps> = ({
       nodeCanvasObject={nodeCanvasObject as any}
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       nodePointerAreaPaint={nodePointerAreaPaint as any}
+      enableZoomInteraction={false}
+      enablePanInteraction={false}
+      minZoom={1}
+      maxZoom={1}
+      onZoom={() => {
+        // Prevent zoom by resetting if it changes
+        if (graphRef.current) {
+          graphRef.current.zoom(1, 0);
+        }
+      }}
       onNodeClick={() => {
         // Could add node click handler here
       }}
@@ -407,10 +458,12 @@ export const LiteraryGraph: React.FC<LiteraryGraphProps> = ({
       cooldownTicks={100}
       onEngineStop={() => {
         if (graphRef.current && nodes.length > 0) {
-          // Center and zoom to fit all nodes
-          graphRef.current.zoomToFit(400, 20);
+          // Center and zoom to fit all nodes with extra padding for labels
+          // Padding accounts for node size + label height (~50px)
+          graphRef.current.zoomToFit(400, 50);
         }
       }}
-    />
+      />
+    </div>
   );
 };
